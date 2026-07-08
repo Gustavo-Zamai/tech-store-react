@@ -1,0 +1,13 @@
+@import './variables.css';
+@import './base.css';
+@import './layout.css';
+@import './components.css';
+@import './modal.css';
+@import './login.css';
+
+/* View pages fade-in (kept from the original vanilla app) */
+.view-page { animation: fadeIn .3s ease; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

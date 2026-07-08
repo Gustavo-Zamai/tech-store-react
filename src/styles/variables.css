@@ -1,0 +1,44 @@
+/* =============================================
+   TECH STORE — Design Tokens
+   ============================================= */
+
+:root {
+  /* Palette */
+  --bg-base:      #0d1117;
+  --bg-surface:   #161b22;
+  --bg-card:      #1c2230;
+  --bg-hover:     #222d3d;
+
+  --accent:       #00c6ff;
+  --accent-dim:   rgba(0, 198, 255, 0.12);
+  --accent-glow:  rgba(0, 198, 255, 0.35);
+
+  --success:      #2ea043;
+  --warning:      #d29922;
+  --danger:       #f85149;
+  --danger-dim:   rgba(248, 81, 73, 0.12);
+
+  --text-primary:   #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted:     #484f58;
+
+  --border:       rgba(255,255,255,0.08);
+  --border-accent: rgba(0,198,255,0.3);
+
+  /* Typography */
+  --font-display: 'Inter', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Radius */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+
+  /* Shadows */
+  --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-glow: 0 0 20px var(--accent-glow);
+
+  /* Transitions */
+  --transition: 180ms ease;
+}

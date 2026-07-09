@@ -12,8 +12,6 @@ import { LoadingRow, EmptyRow, StatusBadge } from '../components/TableHelpers';
 const emptyForm = { 
   descricao: '', 
   ativo: 'true',
-  cor: '',
-  icone: '',
 };
 
 export default function Categorias() {
@@ -47,8 +45,7 @@ export default function Categorias() {
     const q = search.toLowerCase().trim();
     if (!q) return categorias;
     return categorias.filter((c) => 
-      c.descricao?.toLowerCase().includes(q) ||
-      c.cor?.toLowerCase().includes(q)
+      c.descricao?.toLowerCase().includes(q)
     );
   }, [categorias, search]);
 
@@ -65,8 +62,6 @@ export default function Categorias() {
       setForm({ 
         descricao: c.descricao ?? '', 
         ativo: c.ativo === false ? 'false' : 'true',
-        cor: c.cor ?? '',
-        icone: c.icone ?? '',
       });
       setModalOpen(true);
     } catch {
@@ -91,8 +86,6 @@ export default function Categorias() {
       const data = { 
         descricao: form.descricao, 
         ativo: form.ativo === 'true',
-        cor: form.cor || undefined,
-        icone: form.icone || undefined,
       };
       
       if (editing) {
@@ -129,35 +122,20 @@ export default function Categorias() {
           <thead>
             <tr>
               <th>#</th>
-              <th>Nome</th>
-              <th>Cor</th>
-              <th>Ícone</th>
+              <th>Descrição</th>
               <th>Situação</th>
               <th>Data Cadastro</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {categorias === null && !error && <LoadingRow colSpan={7} />}
-            {error && <EmptyRow colSpan={7} message="Erro ao carregar categorias." />}
-            {categorias !== null && filtered.length === 0 && <EmptyRow colSpan={7} />}
+            {categorias === null && !error && <LoadingRow colSpan={5} />}
+            {error && <EmptyRow colSpan={5} message="Erro ao carregar categorias." />}
+            {categorias !== null && filtered.length === 0 && <EmptyRow colSpan={5} />}
             {filtered.map((c) => (
               <tr key={c.id}>
                 <td><code style={{ fontFamily: 'var(--font-mono)', fontSize: '.8rem', color: 'var(--text-muted)' }}>{c.id}</code></td>
-                <td style={{ fontWeight: 500 }}>
-                  <span style={{ 
-                    display: 'inline-block', 
-                    width: 12, 
-                    height: 12, 
-                    borderRadius: '50%', 
-                    backgroundColor: c.cor || 'var(--text-muted)',
-                    marginRight: '.5rem',
-                    verticalAlign: 'middle'
-                  }} />
-                  {c.descricao}
-                </td>
-                <td>{c.cor || '—'}</td>
-                <td style={{ fontSize: '1.25rem' }}>{c.icone || '—'}</td>
+                <td style={{ fontWeight: 500 }}>{c.descricao}</td>
                 <td><StatusBadge ativo={c.ativo} /></td>
                 <td style={{ fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{formatDateDisplay(c.dataCadastro)}</td>
                 <td>
@@ -176,23 +154,9 @@ export default function Categorias() {
         <h2>{editing ? 'Editar Categoria' : 'Nova Categoria'}</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Nome da Categoria *</label>
+            <label>Descrição *</label>
             <input className="form-control" required value={form.descricao}
               onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
-          </div>
-
-          <div className="grid-2">
-            <div className="form-group">
-              <label>Cor</label>
-              <input className="form-control" type="color" value={form.cor || '#8b949e'}
-                onChange={(e) => setForm({ ...form, cor: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Ícone (Emoji)</label>
-              <input className="form-control" value={form.icone}
-                onChange={(e) => setForm({ ...form, icone: e.target.value })} 
-                placeholder="📦" />
-            </div>
           </div>
 
           <div className="form-group">

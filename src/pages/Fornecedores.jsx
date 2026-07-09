@@ -14,17 +14,13 @@ const emptyForm = {
   cnpj: '', 
   email: '', 
   telefone: '',
-  celular: '',
   endereco: '', 
   numero: '', 
   cep: '', 
   bairro: '', 
   cidade: '', 
   estado: '',
-  site: '',
-  observacao: '',
   ativo: 'true',
-  categoria: '',
 };
 
 export default function Fornecedores() {
@@ -59,8 +55,7 @@ export default function Fornecedores() {
     return fornecedores.filter((f) => 
       f.nomeCompleto?.toLowerCase().includes(q) || 
       f.cnpj?.includes(q) ||
-      f.email?.toLowerCase().includes(q) ||
-      f.categoria?.toLowerCase().includes(q)
+      f.email?.toLowerCase().includes(q)
     );
   }, [fornecedores, search]);
 
@@ -79,17 +74,13 @@ export default function Fornecedores() {
         cnpj: f.cnpj ?? '',
         email: f.email ?? '',
         telefone: f.telefone ?? '',
-        celular: f.celular ?? '',
         endereco: f.endereco ?? '',
         numero: f.numero ?? '',
         cep: f.cep ?? '',
         bairro: f.bairro ?? '',
         cidade: f.cidade ?? '',
         estado: f.estado ?? '',
-        site: f.site ?? '',
-        observacao: f.observacao ?? '',
         ativo: f.ativo === false ? 'false' : 'true',
-        categoria: f.categoria ?? '',
       });
       setModalOpen(true);
     } catch (err) {
@@ -113,9 +104,17 @@ export default function Fornecedores() {
     setSaving(true);
     try {
       const data = { 
-        ...form, 
-        ativo: form.ativo === 'true',
+        nomeCompleto: form.nomeCompleto,
+        cnpj: form.cnpj || undefined,
+        email: form.email || undefined,
+        telefone: form.telefone || undefined,
+        cep: form.cep || undefined,
+        endereco: form.endereco || undefined,
         numero: form.numero ? parseInt(form.numero) : undefined,
+        bairro: form.bairro || undefined,
+        cidade: form.cidade || undefined,
+        estado: form.estado || undefined,
+        ativo: form.ativo === 'true',
       };
       
       if (editing) {
@@ -156,23 +155,21 @@ export default function Fornecedores() {
               <th>CNPJ</th>
               <th>Email</th>
               <th>Telefone</th>
-              <th>Categoria</th>
               <th>Situação</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {fornecedores === null && !error && <LoadingRow colSpan={8} />}
-            {error && <EmptyRow colSpan={8} message="Erro ao carregar fornecedores." />}
-            {fornecedores !== null && filtered.length === 0 && <EmptyRow colSpan={8} />}
+            {fornecedores === null && !error && <LoadingRow colSpan={7} />}
+            {error && <EmptyRow colSpan={7} message="Erro ao carregar fornecedores." />}
+            {fornecedores !== null && filtered.length === 0 && <EmptyRow colSpan={7} />}
             {filtered.map((f) => (
               <tr key={f.id}>
                 <td><code style={{ fontFamily: 'var(--font-mono)', fontSize: '.8rem', color: 'var(--text-muted)' }}>{f.id}</code></td>
                 <td style={{ fontWeight: 500 }}>{f.nomeCompleto}</td>
                 <td style={{ fontFamily: 'var(--font-mono)', fontSize: '.85rem' }}>{f.cnpj ?? '—'}</td>
                 <td>{f.email ?? '—'}</td>
-                <td>{f.telefone ?? f.celular ?? '—'}</td>
-                <td>{f.categoria ?? '—'}</td>
+                <td>{f.telefone ?? '—'}</td>
                 <td><StatusBadge ativo={f.ativo} /></td>
                 <td>
                   <div style={{ display: 'flex', gap: '.5rem' }}>
@@ -197,50 +194,24 @@ export default function Fornecedores() {
 
           <div className="grid-2">
             <div className="form-group">
-              <label>CNPJ</label>
-              <input className="form-control" value={form.cnpj}
+              <label>CNPJ *</label>
+              <input className="form-control" required value={form.cnpj}
                 onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
             </div>
-            <div className="form-group">
-              <label>Categoria</label>
-              <input className="form-control" value={form.categoria}
-                onChange={(e) => setForm({ ...form, categoria: e.target.value })} 
-                placeholder="Ex: Eletrônicos, Alimentos..." />
-            </div>
-          </div>
-
-          <div className="grid-2">
             <div className="form-group">
               <label>Telefone</label>
               <input className="form-control" value={form.telefone}
                 onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
             </div>
-            <div className="form-group">
-              <label>Celular</label>
-              <input className="form-control" value={form.celular}
-                onChange={(e) => setForm({ ...form, celular: e.target.value })} />
-            </div>
           </div>
 
           <div className="form-group">
-            <label>Email</label>
-            <input className="form-control" type="email" value={form.email}
+            <label>Email *</label>
+            <input className="form-control" type="email" required value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
 
-          <div className="form-group">
-            <label>Site</label>
-            <input className="form-control" type="url" value={form.site}
-              onChange={(e) => setForm({ ...form, site: e.target.value })} />
-          </div>
-
           <AddressFields form={form} setForm={setForm} />
-
-          <div className="form-group">
-            <label>Observação</label>
-            <textarea className="form-control" rows={2} value={form.observacao}
-              onChange={(e) => setForm({ ...form, observacao: e.target.value })} />
-          </div>
 
           <div className="form-group">
             <label>Situação</label>

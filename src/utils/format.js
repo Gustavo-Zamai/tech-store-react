@@ -93,10 +93,6 @@ export const ESTADOS_BR = [
   ['SP', 'São Paulo'], ['SE', 'Sergipe'], ['TO', 'Tocantins'],
 ];
 
-// utils/format.js
-
-// ... código existente ...
-
 /**
  * Retorna o label do regime tributário
  */
@@ -118,4 +114,34 @@ export function getAmbienteNFeLabel(value) {
     2: 'Homologação'
   };
   return ambientes[value] || '—';
+}
+
+/**
+ * Retorna o label do indicador IE
+ */
+export function getIndicadorIeLabel(value) {
+  const labels = {
+    1: 'Contribuinte ICMS',
+    2: 'Isento de Inscrição',
+    9: 'Não Contribuinte'
+  };
+  return labels[value] || '—';
+}
+
+/**
+ * Retorna o label da origem da mercadoria
+ */
+export function getOrigemMercadoriaLabel(value) {
+  const labels = {
+    0: 'Nacional',
+    1: 'Estrangeira - Importação direta',
+    2: 'Estrangeira - Adquirida no mercado interno',
+    3: 'Estrangeira - Importação direta sem similar nacional',
+    4: 'Estrangeira - Adquirida no mercado interno sem similar nacional',
+    5: 'Estrangeira - Importação direta com similar nacional',
+    6: 'Estrangeira - Adquirida no mercado interno com similar nacional',
+    7: 'Estrangeira - Importação direta de bem usado',
+    8: 'Estrangeira - Adquirida no mercado interno de bem usado',
+  };
+  return labels[value] || '—';
 }

@@ -6,10 +6,19 @@ import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import { useConfirm } from '../components/useConfirm';
-import { formatCurrency, formatDateDisplay, formatDateForInput, formatDateToISO } from '../utils/format';
+import { formatCurrency, formatDateDisplay, formatDateForInput } from '../utils/format';
 import { LoadingRow, EmptyRow } from '../components/TableHelpers';
 
-const METODOS = ['CARTAO_CREDITO', 'CARTAO_DEBITO', 'PIX', 'DINHEIRO', 'TRANSFERENCIA'];
+// Métodos de pagamento compatíveis com o backend (String)
+const METODOS_PAGAMENTO = [
+  { value: 'Cartão de Crédito', code: '03' },
+  { value: 'Cartão de Débito', code: '04' },
+  { value: 'PIX', code: '17' },
+  { value: 'Dinheiro', code: '01' },
+  { value: 'Boleto Bancário', code: '15' },
+  { value: 'Crédito Loja', code: '05' },
+  { value: 'Outros', code: '99' },
+];
 
 export default function Vendas() {
   const toast = useToast();
@@ -30,6 +39,7 @@ export default function Vendas() {
     idCliente: '', 
     idFuncionario: '', 
     metodoPagamento: '', 
+    metodoPagamentoCodigo: '',
     dataVenda: '',
     desconto: 0,
     troco: 0
@@ -102,6 +112,7 @@ export default function Vendas() {
         idCliente: venda.idCliente ?? '',
         idFuncionario: venda.idFuncionario ?? '',
         metodoPagamento: venda.metodoPagamento ?? '',
+        metodoPagamentoCodigo: venda.metodoPagamentoCodigo ?? '',
         dataVenda: venda.dataVenda ? formatDateForInput(venda.dataVenda) : '',
         desconto: venda.desconto ?? 0,
         troco: venda.troco ?? 0,
@@ -117,6 +128,7 @@ export default function Vendas() {
         idCliente: '',
         idFuncionario: '',
         metodoPagamento: '',
+        metodoPagamentoCodigo: '',
         dataVenda: '',
         desconto: 0,
         troco: 0
@@ -234,6 +246,7 @@ export default function Vendas() {
         idCliente: parseInt(form.idCliente),
         idFuncionario: parseInt(form.idFuncionario),
         metodoPagamento: form.metodoPagamento,
+        metodoPagamentoCodigo: form.metodoPagamentoCodigo || undefined,
         itens: itens.map((i) => ({ 
           idProduto: i.idProduto, 
           quantidade: i.quantidade 
@@ -261,12 +274,22 @@ export default function Vendas() {
   // Renderização do status da venda
   const getSituacaoBadge = (status) => {
     const badges = {
-      'CONCLUIDA': 'badge-success',
+      'FINALIZADA': 'badge-success',
       'CANCELADA': 'badge-danger',
       'PENDENTE': 'badge-warning',
       'NAO_EMITIDA': 'badge-muted'
     };
     return badges[status] || 'badge-info';
+  };
+
+  // Quando o método de pagamento muda, atualiza o código
+  const handleMetodoChange = (value) => {
+    const metodo = METODOS_PAGAMENTO.find(m => m.value === value);
+    setForm({ 
+      ...form, 
+      metodoPagamento: value,
+      metodoPagamentoCodigo: metodo?.code || ''
+    });
   };
 
   return (
@@ -287,7 +310,7 @@ export default function Vendas() {
               <th>Itens</th>
               <th>Total</th>
               <th>Data</th>
-              <th>Status</th>
+              <th>Status Fiscal</th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -307,7 +330,9 @@ export default function Vendas() {
                   <td style={{ textAlign: 'center' }}>{v.itens?.length ?? '—'}</td>
                   <td style={{ fontWeight: 600, color: 'var(--accent)' }}>{formatCurrency(total)}</td>
                   <td style={{ fontSize: '.8125rem', color: 'var(--text-secondary)' }}>{formatDateDisplay(v.dataVenda)}</td>
-                  <td><span className={`badge ${getSituacaoBadge(v.status)}`}>{v.status ?? 'CONCLUIDA'}</span></td>
+                  <td><span className={`badge ${getSituacaoBadge(v.statusEmissaoFiscal || v.status)}`}>
+                    {v.statusEmissaoFiscal || v.status || 'CONCLUIDA'}
+                  </span></td>
                   <td>
                     <button className="btn btn-secondary btn-sm" onClick={() => openEdit(v.id)}>✏️ Editar</button>{' '}
                     <button className="btn btn-danger btn-sm" onClick={() => handleDelete(v.id)}>🗑️</button>
@@ -352,12 +377,17 @@ export default function Vendas() {
               <div className="form-group">
                 <label>Método de Pagamento *</label>
                 <select className="form-control" required value={form.metodoPagamento}
-                  onChange={(e) => setForm({ ...form, metodoPagamento: e.target.value })}>
+                  onChange={(e) => handleMetodoChange(e.target.value)}>
                   <option value="">— Selecione —</option>
-                  {METODOS.map((m) => (
-                    <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>
+                  {METODOS_PAGAMENTO.map((m) => (
+                    <option key={m.value} value={m.value}>{m.value} {m.code ? `(${m.code})` : ''}</option>
                   ))}
                 </select>
+                {form.metodoPagamentoCodigo && (
+                  <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '.25rem' }}>
+                    Código SEFAZ: {form.metodoPagamentoCodigo}
+                  </small>
+                )}
               </div>
               <div className="form-group">
                 <label>Data da Venda</label>
@@ -481,7 +511,7 @@ export default function Vendas() {
                 </div>
               </div>
 
-              {form.metodoPagamento === 'DINHEIRO' && (
+              {form.metodoPagamento === 'Dinheiro' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
                   <div>
                     <label style={{ fontSize: '.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '.04em' }}>

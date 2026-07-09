@@ -1,3 +1,5 @@
+// components/Sidebar.jsx
+
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '/logo.png';
@@ -67,15 +69,22 @@ export default function Sidebar({ open, onNavigate }) {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="user-info" title={`${nomeCompleto}\n${cargo}`}>
+        <div className="user-info" title={`${nomeCompleto}\n${cargo}\n${empresaNome}`}>
           <div className="user-avatar">
             {imagemUrl
               ? <img src={imagemUrl} alt={primeiroNome} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
               : iniciais}
           </div>
-          <div>
+          <div className="user-details">
             <div className="user-name">{primeiroNome}</div>
-            <div className="user-role">{subInfo}</div>
+            {/* Agora cargo e empresa ficam em linhas separadas */}
+            <div className="user-role">
+              {cargo && <div className="user-role-line">{cargo}</div>}
+              {empresaNome && <div className="user-role-line">{empresaNome}</div>}
+              {!cargo && !empresaNome && nivelAcesso && (
+                <div className="user-role-line">{nivelAcesso}</div>
+              )}
+            </div>
           </div>
         </div>
         <button className="btn btn-logout btn-sm" onClick={logout}>

@@ -8,7 +8,6 @@ import ConfirmModal from '../components/ConfirmModal';
 import AddressFields from '../components/AddressFields';
 import { useConfirm } from '../components/useConfirm';
 import { LoadingRow, EmptyRow, StatusBadge } from '../components/TableHelpers';
-import { formatCurrency } from '../utils/format';
 
 const emptyForm = {
   nomeCompleto: '', 
@@ -18,7 +17,6 @@ const emptyForm = {
   imagemUrl: '', 
   idEmpresa: '', 
   cargo: '', 
-  salario: '', 
   senha: '',
   endereco: '', 
   numero: '', 
@@ -52,17 +50,21 @@ export default function Funcionarios() {
   const { confirmState, requestConfirm, cancelConfirm } = useConfirm();
 
   const load = async () => {
-    const [funcs, emps] = await Promise.allSettled([
-      API.funcionarios.list(), 
-      API.empresas.list()
-    ]);
-    if (funcs.status === 'fulfilled') { 
-      setFuncionarios(funcs.value || []); 
-      setError(false); 
-    } else { 
-      setError(true); 
+    try {
+      const [funcs, emps] = await Promise.allSettled([
+        API.funcionarios.list(), 
+        API.empresas.list()
+      ]);
+      if (funcs.status === 'fulfilled') { 
+        setFuncionarios(funcs.value || []); 
+        setError(false); 
+      } else { 
+        setError(true); 
+      }
+      if (emps.status === 'fulfilled') setEmpresas(emps.value || []);
+    } catch {
+      setError(true);
     }
-    if (emps.status === 'fulfilled') setEmpresas(emps.value || []);
   };
 
   useEffect(() => { load(); }, []);
@@ -81,7 +83,7 @@ export default function Funcionarios() {
 
   const openNew = () => { 
     setEditing(null); 
-    setForm(emptyForm); 
+    setForm({ ...emptyForm, senha: '' }); 
     setModalOpen(true); 
   };
 
@@ -97,8 +99,7 @@ export default function Funcionarios() {
         imagemUrl: f.imagemUrl ?? '',
         idEmpresa: f.idEmpresa ?? '',
         cargo: f.cargo ?? '',
-        salario: f.salario ?? '',
-        senha: '',
+        senha: '', // senha não é retornada, deixamos vazio
         endereco: f.endereco ?? '',
         numero: f.numero ?? '',
         cep: f.cep ?? '',
@@ -145,17 +146,16 @@ export default function Funcionarios() {
         nomeCompleto: form.nomeCompleto,
         cpf: form.cpf,
         email: form.email,
-        telefone: form.telefone,
-        endereco: form.endereco,
+        telefone: form.telefone || undefined,
+        endereco: form.endereco || undefined,
         numero: form.numero ? parseInt(form.numero) : undefined,
-        cep: form.cep,
-        bairro: form.bairro,
-        cidade: form.cidade,
-        estado: form.estado,
-        idEmpresa: form.idEmpresa || undefined,
+        cep: form.cep || undefined,
+        bairro: form.bairro || undefined,
+        cidade: form.cidade || undefined,
+        estado: form.estado || undefined,
+        idEmpresa: form.idEmpresa ? parseInt(form.idEmpresa) : undefined,
         imagemUrl: form.imagemUrl || undefined,
         cargo: form.cargo,
-        salario: form.salario ? parseFloat(form.salario) : undefined,
         nivelAcesso: form.nivelAcesso || 'USER',
         dataContratacao: form.dataContratacao || undefined,
         ativo: form.ativo === 'true',
@@ -309,28 +309,10 @@ export default function Funcionarios() {
                 onChange={(e) => setForm({ ...form, cargo: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>Salário</label>
-              <input className="form-control" type="number" step="0.01" min="0" value={form.salario}
-                onChange={(e) => setForm({ ...form, salario: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Senha {editing && '(deixe em branco para manter)'}</label>
-              <input className="form-control" type="password" value={form.senha}
+              <label>Senha {editing ? '(deixe em branco para manter)' : '*'}</label>
+              <input className="form-control" type="password" required={!editing} value={form.senha}
                 onChange={(e) => setForm({ ...form, senha: e.target.value })} 
                 placeholder={editing ? '••••••••' : 'Nova senha'} />
-            </div>
-          </div>
-
-          <AddressFields form={form} setForm={setForm} />
-
-          <div className="grid-2">
-            <div className="form-group">
-              <label>Situação</label>
-              <select className="form-control" value={form.ativo}
-                onChange={(e) => setForm({ ...form, ativo: e.target.value })}>
-                <option value="true">Ativo</option>
-                <option value="false">Inativo</option>
-              </select>
             </div>
             <div className="form-group">
               <label>Nível de Acesso *</label>
@@ -341,6 +323,17 @@ export default function Funcionarios() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <AddressFields form={form} setForm={setForm} />
+
+          <div className="form-group">
+            <label>Situação</label>
+            <select className="form-control" value={form.ativo}
+              onChange={(e) => setForm({ ...form, ativo: e.target.value })}>
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem', marginTop: '1rem' }}>

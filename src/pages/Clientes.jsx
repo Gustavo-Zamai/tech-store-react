@@ -7,25 +7,21 @@ import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import AddressFields from '../components/AddressFields';
 import { useConfirm } from '../components/useConfirm';
-import { LoadingRow, EmptyRow, StatusBadge } from '../components/TableHelpers';
+import { LoadingRow, EmptyRow, StatusBadge, getIndicadorIeLabel } from '../components/TableHelpers';
 
 const emptyForm = {
-  nome: '', 
+  nomeCompleto: '', 
   cpf: '', 
-  cnpj: '',
   email: '', 
   telefone: '',
-  celular: '',
   endereco: '', 
   numero: '', 
   cep: '', 
   bairro: '', 
   cidade: '', 
   estado: '',
-  dataNascimento: '',
-  observacao: '',
   ativo: 'true',
-  tipoPessoa: 'FISICA',
+  indicadorIe: '',
 };
 
 export default function Clientes() {
@@ -58,9 +54,8 @@ export default function Clientes() {
     const q = search.toLowerCase().trim();
     if (!q) return clientes;
     return clientes.filter((c) => 
-      c.nome?.toLowerCase().includes(q) || 
+      c.nomeCompleto?.toLowerCase().includes(q) || 
       c.cpf?.includes(q) || 
-      c.cnpj?.includes(q) ||
       c.email?.toLowerCase().includes(q)
     );
   }, [clientes, search]);
@@ -76,38 +71,23 @@ export default function Clientes() {
       const c = await API.clientes.get(id);
       setEditing(c);
       setForm({
-        nome: c.nomeCompleto ?? c.nome ?? '',
+        nomeCompleto: c.nomeCompleto ?? '',
         cpf: c.cpf ?? '',
-        cnpj: c.cnpj ?? '',
         email: c.email ?? '',
         telefone: c.telefone ?? '',
-        celular: c.celular ?? '',
         endereco: c.endereco ?? '',
         numero: c.numero ?? '',
         cep: c.cep ?? '',
         bairro: c.bairro ?? '',
         cidade: c.cidade ?? '',
         estado: c.estado ?? '',
-        dataNascimento: c.dataNascimento ? formatDateForInput(c.dataNascimento) : '',
-        observacao: c.observacao ?? '',
         ativo: c.ativo === false ? 'false' : 'true',
-        tipoPessoa: c.tipoPessoa ?? 'FISICA',
+        indicadorIe: c.indicadorIe ?? '',
       });
       setModalOpen(true);
     } catch (err) {
       toast.error('Erro ao carregar cliente');
       console.error(err);
-    }
-  };
-
-  const formatDateForInput = (dateStr) => {
-    if (!dateStr) return '';
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return '';
-      return date.toISOString().split('T')[0];
-    } catch {
-      return '';
     }
   };
 
@@ -126,11 +106,18 @@ export default function Clientes() {
     setSaving(true);
     try {
       const data = { 
-        ...form, 
-        ativo: form.ativo === 'true',
+        nomeCompleto: form.nomeCompleto,
         cpf: form.cpf || undefined,
-        cnpj: form.cnpj || undefined,
+        email: form.email || undefined,
+        telefone: form.telefone || undefined,
+        cep: form.cep || undefined,
+        endereco: form.endereco || undefined,
         numero: form.numero ? parseInt(form.numero) : undefined,
+        bairro: form.bairro || undefined,
+        cidade: form.cidade || undefined,
+        estado: form.estado || undefined,
+        ativo: form.ativo === 'true',
+        indicadorIe: form.indicadorIe ? parseInt(form.indicadorIe) : undefined,
       };
       
       if (editing) {
@@ -146,6 +133,18 @@ export default function Clientes() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Opções para o indicador IE
+  const INDICADOR_IE_OPCOES = [
+    { value: 1, label: 'Contribuinte ICMS' },
+    { value: 2, label: 'Isento de Inscrição' },
+    { value: 9, label: 'Não Contribuinte' },
+  ];
+
+  const getIndicadorIeLabel = (value) => {
+    const opcao = INDICADOR_IE_OPCOES.find(o => o.value === value);
+    return opcao?.label || '—';
   };
 
   return (
@@ -168,10 +167,10 @@ export default function Clientes() {
             <tr>
               <th>#</th>
               <th>Nome</th>
-              <th>CPF/CNPJ</th>
+              <th>CPF</th>
               <th>Email</th>
               <th>Telefone</th>
-              <th>Tipo</th>
+              <th>Indicador IE</th>
               <th>Situação</th>
               <th>Ações</th>
             </tr>
@@ -183,20 +182,16 @@ export default function Clientes() {
             {filtered.map((c) => (
               <tr key={c.id}>
                 <td><code style={{ fontFamily: 'var(--font-mono)', fontSize: '.8rem', color: 'var(--text-muted)' }}>{c.id}</code></td>
-                <td style={{ fontWeight: 500 }}>{c.nomeCompleto ?? c.nome}</td>
-                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '.85rem' }}>{c.cpf ?? c.cnpj ?? '—'}</td>
+                <td style={{ fontWeight: 500 }}>{c.nomeCompleto}</td>
+                <td style={{ fontFamily: 'var(--font-mono)', fontSize: '.85rem' }}>{c.cpf ?? '—'}</td>
                 <td>{c.email ?? '—'}</td>
-                <td>{c.telefone ?? c.celular ?? '—'}</td>
-                <td>
-                  <span className="badge badge-info">
-                    {c.tipoPessoa === 'JURIDICA' ? 'PJ' : 'PF'}
-                  </span>
-                </td>
+                <td>{c.telefone ?? '—'}</td>
+                <td>{getIndicadorIeLabel(c.indicadorIe)}</td>
                 <td><StatusBadge ativo={c.ativo} /></td>
                 <td>
                   <div style={{ display: 'flex', gap: '.5rem' }}>
                     <button className="btn btn-secondary btn-sm" onClick={() => openEdit(c.id)}>✏️ Editar</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(c.id, c.nomeCompleto ?? c.nome)}>🗑️</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(c.id, c.nomeCompleto)}>🗑️</button>
                   </div>
                 </td>
               </tr>
@@ -209,45 +204,33 @@ export default function Clientes() {
         <h2>{editing ? 'Editar Cliente' : 'Novo Cliente'}</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Nome *</label>
-            <input className="form-control" required value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-          </div>
-
-          <div className="form-group">
-            <label>Tipo de Pessoa</label>
-            <select className="form-control" value={form.tipoPessoa}
-              onChange={(e) => setForm({ ...form, tipoPessoa: e.target.value })}>
-              <option value="FISICA">Pessoa Física</option>
-              <option value="JURIDICA">Pessoa Jurídica</option>
-            </select>
+            <label>Nome Completo *</label>
+            <input className="form-control" required value={form.nomeCompleto}
+              onChange={(e) => setForm({ ...form, nomeCompleto: e.target.value })} />
           </div>
 
           <div className="grid-2">
-            {form.tipoPessoa === 'FISICA' ? (
-              <div className="form-group">
-                <label>CPF *</label>
-                <input className="form-control" required value={form.cpf}
-                  onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
-              </div>
-            ) : (
-              <div className="form-group">
-                <label>CNPJ *</label>
-                <input className="form-control" required value={form.cnpj}
-                  onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
-              </div>
-            )}
             <div className="form-group">
-              <label>Data de Nascimento</label>
-              <input className="form-control" type="date" value={form.dataNascimento}
-                onChange={(e) => setForm({ ...form, dataNascimento: e.target.value })} />
+              <label>CPF *</label>
+              <input className="form-control" required value={form.cpf}
+                onChange={(e) => setForm({ ...form, cpf: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Indicador IE</label>
+              <select className="form-control" value={form.indicadorIe}
+                onChange={(e) => setForm({ ...form, indicadorIe: e.target.value })}>
+                <option value="">— Selecione —</option>
+                {INDICADOR_IE_OPCOES.map(op => (
+                  <option key={op.value} value={op.value}>{op.label}</option>
+                ))}
+              </select>
             </div>
           </div>
 
           <div className="grid-2">
             <div className="form-group">
-              <label>Email</label>
-              <input className="form-control" type="email" value={form.email}
+              <label>Email *</label>
+              <input className="form-control" type="email" required value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="form-group">
@@ -257,19 +240,7 @@ export default function Clientes() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Celular</label>
-            <input className="form-control" value={form.celular}
-              onChange={(e) => setForm({ ...form, celular: e.target.value })} />
-          </div>
-
           <AddressFields form={form} setForm={setForm} />
-
-          <div className="form-group">
-            <label>Observação</label>
-            <textarea className="form-control" rows={2} value={form.observacao}
-              onChange={(e) => setForm({ ...form, observacao: e.target.value })} />
-          </div>
 
           <div className="form-group">
             <label>Situação</label>

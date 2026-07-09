@@ -98,10 +98,8 @@ async function ping() {
 // ── Autenticação ─────────────────────────────
 async function login(email, senha) {
   try {
-    // Usa o endpoint de autenticação oficial
     const response = await post('/api/auth/login', { email, senha });
     
-    // Busca os dados completos do funcionário
     const funcionario = await get(`/api/funcionarios/${response.id}`);
     
     return {
@@ -113,6 +111,7 @@ async function login(email, senha) {
       imagemUrl: funcionario.imagemUrl ?? null,
       idEmpresa: funcionario.idEmpresa,
       nomeEmpresa: funcionario.nomeEmpresa,
+      ativo: funcionario.ativo,
     };
   } catch (error) {
     if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
@@ -137,25 +136,24 @@ const funcionarios = {
   get: (id) => get(`/api/funcionarios/${id}`),
   byEmpresa: (idEmp) => get(`/api/funcionarios/empresa/${idEmp}`),
   create: (data) => {
-    // Mapeia campos do frontend para o backend
     const mapped = {
       nomeCompleto: data.nomeCompleto,
       cpf: data.cpf,
       email: data.email,
       senha: data.senha,
       cargo: data.cargo,
-      nivelAcesso: data.nivelAcesso,
+      nivelAcesso: data.nivelAcesso || 'USER',
       telefone: data.telefone,
       cep: data.cep,
       endereco: data.endereco,
-      numero: data.numero,
+      numero: data.numero ? parseInt(data.numero) : undefined,
       bairro: data.bairro,
       cidade: data.cidade,
       estado: data.estado,
-      idEmpresa: data.idEmpresa,
+      idEmpresa: data.idEmpresa ? parseInt(data.idEmpresa) : undefined,
       imagemUrl: data.imagemUrl,
       dataContratacao: data.dataContratacao || data.dataAdmissao,
-      ativo: data.ativo,
+      ativo: data.ativo !== undefined ? data.ativo : true,
     };
     return post('/api/funcionarios', mapped);
   },
@@ -165,21 +163,20 @@ const funcionarios = {
       cpf: data.cpf,
       email: data.email,
       cargo: data.cargo,
-      nivelAcesso: data.nivelAcesso,
+      nivelAcesso: data.nivelAcesso || 'USER',
       telefone: data.telefone,
       cep: data.cep,
       endereco: data.endereco,
-      numero: data.numero,
+      numero: data.numero ? parseInt(data.numero) : undefined,
       bairro: data.bairro,
       cidade: data.cidade,
       estado: data.estado,
-      idEmpresa: data.idEmpresa,
+      idEmpresa: data.idEmpresa ? parseInt(data.idEmpresa) : undefined,
       imagemUrl: data.imagemUrl,
       dataContratacao: data.dataContratacao || data.dataAdmissao,
-      ativo: data.ativo,
+      ativo: data.ativo !== undefined ? data.ativo : true,
     };
-    // Só inclui senha se foi fornecida
-    if (data.senha) {
+    if (data.senha && data.senha.trim()) {
       mapped.senha = data.senha;
     }
     return put(`/api/funcionarios/${id}`, mapped);
@@ -191,8 +188,39 @@ const funcionarios = {
 const fornecedores = {
   list: () => get('/api/fornecedores'),
   get: (id) => get(`/api/fornecedores/${id}`),
-  create: (data) => post('/api/fornecedores', data),
-  update: (id, d) => put(`/api/fornecedores/${id}`, d),
+  create: (data) => {
+    const mapped = {
+      nomeCompleto: data.nomeCompleto,
+      cnpj: data.cnpj,
+      email: data.email,
+      telefone: data.telefone,
+      cep: data.cep,
+      endereco: data.endereco,
+      numero: data.numero ? parseInt(data.numero) : undefined,
+      bairro: data.bairro,
+      cidade: data.cidade,
+      estado: data.estado,
+      dataCadastro: data.dataCadastro,
+      ativo: data.ativo !== undefined ? data.ativo : true,
+    };
+    return post('/api/fornecedores', mapped);
+  },
+  update: (id, data) => {
+    const mapped = {
+      nomeCompleto: data.nomeCompleto,
+      cnpj: data.cnpj,
+      email: data.email,
+      telefone: data.telefone,
+      cep: data.cep,
+      endereco: data.endereco,
+      numero: data.numero ? parseInt(data.numero) : undefined,
+      bairro: data.bairro,
+      cidade: data.cidade,
+      estado: data.estado,
+      ativo: data.ativo !== undefined ? data.ativo : true,
+    };
+    return put(`/api/fornecedores/${id}`, mapped);
+  },
   delete: (id) => del(`/api/fornecedores/${id}`),
 };
 
@@ -201,10 +229,9 @@ const categorias = {
   list: () => get('/api/categorias'),
   get: (id) => get(`/api/categorias/${id}`),
   create: (data) => {
-    // Mapeia campos do frontend para o backend
     const mapped = {
       descricao: data.descricao || data.nome,
-      ativo: data.ativo,
+      ativo: data.ativo !== undefined ? data.ativo : true,
       dataCadastro: data.dataCadastro,
     };
     return post('/api/categorias', mapped);
@@ -212,7 +239,7 @@ const categorias = {
   update: (id, data) => {
     const mapped = {
       descricao: data.descricao || data.nome,
-      ativo: data.ativo,
+      ativo: data.ativo !== undefined ? data.ativo : true,
     };
     return put(`/api/categorias/${id}`, mapped);
   },
@@ -226,32 +253,38 @@ const produtos = {
   buscarNome: (nome) => get(`/api/produtos/buscar?nome=${encodeURIComponent(nome)}`),
   estoqueBaixo: (qtd) => get(`/api/produtos/estoque-baixo?quantidade=${qtd || 5}`),
   create: (data) => {
-    // Mapeia campos do frontend para o backend
     const mapped = {
       nome: data.nome,
       descricao: data.descricao,
-      precoVenda: data.precoVenda || data.preco,
-      precoCompra: data.precoCusto || 0,
-      quantidade: data.quantidadeEstoque || data.quantidade || 0,
-      idFornecedor: data.idFornecedor,
-      idCategoria: data.idCategoria,
-      quantidadeMinima: data.estoqueMinimo || data.quantidadeMinima || 0,
+      precoVenda: data.precoVenda !== undefined ? parseFloat(data.precoVenda) : (data.preco ? parseFloat(data.preco) : 0),
+      precoCompra: data.precoCompra !== undefined ? parseFloat(data.precoCompra) : (data.precoCusto ? parseFloat(data.precoCusto) : 0),
+      quantidade: data.quantidade !== undefined ? parseInt(data.quantidade) : (data.quantidadeEstoque ? parseInt(data.quantidadeEstoque) : 0),
+      idFornecedor: data.idFornecedor ? parseInt(data.idFornecedor) : undefined,
+      idCategoria: data.idCategoria ? parseInt(data.idCategoria) : undefined,
+      quantidadeMinima: data.quantidadeMinima !== undefined ? parseInt(data.quantidadeMinima) : (data.estoqueMinimo ? parseInt(data.estoqueMinimo) : 0),
       dataCadastro: data.dataCadastro,
-      ativo: data.ativo,
-      // Campos fiscais
+      ativo: data.ativo !== undefined ? data.ativo : true,
       ncm: data.ncm,
       cfop: data.cfop,
       cest: data.cest,
-      unidadeComercial: data.unidadeMedida || data.unidadeComercial,
-      unidadeTributavel: data.unidadeTributavel,
-      gtinEan: data.codigoBarras || data.gtinEan,
-      origemMercadoria: data.origemMercadoria,
+      unidadeComercial: data.unidadeComercial || data.unidadeMedida || 'UN',
+      unidadeTributavel: data.unidadeTributavel || data.unidadeMedida || 'UN',
+      gtinEan: data.gtinEan || data.codigoBarras,
+      origemMercadoria: data.origemMercadoria ? parseInt(data.origemMercadoria) : undefined,
       cstCsosnIcms: data.cstCsosnIcms,
-      aliquotaIcms: data.aliquotaIcms,
+      aliquotaIcms: data.aliquotaIcms ? parseFloat(data.aliquotaIcms) : undefined,
       cstPis: data.cstPis,
-      aliquotaPis: data.aliquotaPis,
+      aliquotaPis: data.aliquotaPis ? parseFloat(data.aliquotaPis) : undefined,
       cstCofins: data.cstCofins,
-      aliquotaCofins: data.aliquotaCofins,
+      aliquotaCofins: data.aliquotaCofins ? parseFloat(data.aliquotaCofins) : undefined,
+      cstIbsCbs: data.cstIbsCbs,
+      cClassTrib: data.cClassTrib,
+      cBenef: data.cBenef,
+      aliquotaIbsEstadual: data.aliquotaIbsEstadual ? parseFloat(data.aliquotaIbsEstadual) : undefined,
+      aliquotaIbsMunicipal: data.aliquotaIbsMunicipal ? parseFloat(data.aliquotaIbsMunicipal) : undefined,
+      aliquotaCbs: data.aliquotaCbs ? parseFloat(data.aliquotaCbs) : undefined,
+      sujeitoImpostoSeletivo: data.sujeitoImpostoSeletivo !== undefined ? data.sujeitoImpostoSeletivo : false,
+      aliquotaImpostoSeletivo: data.aliquotaImpostoSeletivo ? parseFloat(data.aliquotaImpostoSeletivo) : undefined,
     };
     return post('/api/produtos', mapped);
   },
@@ -259,26 +292,34 @@ const produtos = {
     const mapped = {
       nome: data.nome,
       descricao: data.descricao,
-      precoVenda: data.precoVenda || data.preco,
-      precoCompra: data.precoCusto || 0,
-      quantidade: data.quantidadeEstoque || data.quantidade || 0,
-      idFornecedor: data.idFornecedor,
-      idCategoria: data.idCategoria,
-      quantidadeMinima: data.estoqueMinimo || data.quantidadeMinima || 0,
-      ativo: data.ativo,
+      precoVenda: data.precoVenda !== undefined ? parseFloat(data.precoVenda) : (data.preco ? parseFloat(data.preco) : 0),
+      precoCompra: data.precoCompra !== undefined ? parseFloat(data.precoCompra) : (data.precoCusto ? parseFloat(data.precoCusto) : 0),
+      quantidade: data.quantidade !== undefined ? parseInt(data.quantidade) : (data.quantidadeEstoque ? parseInt(data.quantidadeEstoque) : 0),
+      idFornecedor: data.idFornecedor ? parseInt(data.idFornecedor) : undefined,
+      idCategoria: data.idCategoria ? parseInt(data.idCategoria) : undefined,
+      quantidadeMinima: data.quantidadeMinima !== undefined ? parseInt(data.quantidadeMinima) : (data.estoqueMinimo ? parseInt(data.estoqueMinimo) : 0),
+      ativo: data.ativo !== undefined ? data.ativo : true,
       ncm: data.ncm,
       cfop: data.cfop,
       cest: data.cest,
-      unidadeComercial: data.unidadeMedida || data.unidadeComercial,
-      unidadeTributavel: data.unidadeTributavel,
-      gtinEan: data.codigoBarras || data.gtinEan,
-      origemMercadoria: data.origemMercadoria,
+      unidadeComercial: data.unidadeComercial || data.unidadeMedida || 'UN',
+      unidadeTributavel: data.unidadeTributavel || data.unidadeMedida || 'UN',
+      gtinEan: data.gtinEan || data.codigoBarras,
+      origemMercadoria: data.origemMercadoria ? parseInt(data.origemMercadoria) : undefined,
       cstCsosnIcms: data.cstCsosnIcms,
-      aliquotaIcms: data.aliquotaIcms,
+      aliquotaIcms: data.aliquotaIcms ? parseFloat(data.aliquotaIcms) : undefined,
       cstPis: data.cstPis,
-      aliquotaPis: data.aliquotaPis,
+      aliquotaPis: data.aliquotaPis ? parseFloat(data.aliquotaPis) : undefined,
       cstCofins: data.cstCofins,
-      aliquotaCofins: data.aliquotaCofins,
+      aliquotaCofins: data.aliquotaCofins ? parseFloat(data.aliquotaCofins) : undefined,
+      cstIbsCbs: data.cstIbsCbs,
+      cClassTrib: data.cClassTrib,
+      cBenef: data.cBenef,
+      aliquotaIbsEstadual: data.aliquotaIbsEstadual ? parseFloat(data.aliquotaIbsEstadual) : undefined,
+      aliquotaIbsMunicipal: data.aliquotaIbsMunicipal ? parseFloat(data.aliquotaIbsMunicipal) : undefined,
+      aliquotaCbs: data.aliquotaCbs ? parseFloat(data.aliquotaCbs) : undefined,
+      sujeitoImpostoSeletivo: data.sujeitoImpostoSeletivo !== undefined ? data.sujeitoImpostoSeletivo : false,
+      aliquotaImpostoSeletivo: data.aliquotaImpostoSeletivo ? parseFloat(data.aliquotaImpostoSeletivo) : undefined,
     };
     return put(`/api/produtos/${id}`, mapped);
   },
@@ -291,36 +332,36 @@ const clientes = {
   get: (id) => get(`/api/clientes/${id}`),
   create: (data) => {
     const mapped = {
-      nomeCompleto: data.nome || data.nomeCompleto,
+      nomeCompleto: data.nomeCompleto || data.nome,
       cpf: data.cpf,
       email: data.email,
       telefone: data.telefone,
       cep: data.cep,
       endereco: data.endereco,
-      numero: data.numero,
+      numero: data.numero ? parseInt(data.numero) : undefined,
       bairro: data.bairro,
       cidade: data.cidade,
       estado: data.estado,
       dataCadastro: data.dataCadastro,
-      ativo: data.ativo,
-      indicadorIe: data.indicadorIe,
+      ativo: data.ativo !== undefined ? data.ativo : true,
+      indicadorIe: data.indicadorIe ? parseInt(data.indicadorIe) : undefined,
     };
     return post('/api/clientes', mapped);
   },
   update: (id, data) => {
     const mapped = {
-      nomeCompleto: data.nome || data.nomeCompleto,
+      nomeCompleto: data.nomeCompleto || data.nome,
       cpf: data.cpf,
       email: data.email,
       telefone: data.telefone,
       cep: data.cep,
       endereco: data.endereco,
-      numero: data.numero,
+      numero: data.numero ? parseInt(data.numero) : undefined,
       bairro: data.bairro,
       cidade: data.cidade,
       estado: data.estado,
-      ativo: data.ativo,
-      indicadorIe: data.indicadorIe,
+      ativo: data.ativo !== undefined ? data.ativo : true,
+      indicadorIe: data.indicadorIe ? parseInt(data.indicadorIe) : undefined,
     };
     return put(`/api/clientes/${id}`, mapped);
   },
@@ -335,12 +376,13 @@ const vendas = {
   byPeriodo: (inicio, fim) => get(`/api/vendas/periodo?inicio=${inicio}&fim=${fim}`),
   create: (data) => {
     const mapped = {
-      idCliente: data.idCliente,
-      idFuncionario: data.idFuncionario,
+      idCliente: data.idCliente ? parseInt(data.idCliente) : undefined,
+      idFuncionario: data.idFuncionario ? parseInt(data.idFuncionario) : undefined,
       metodoPagamento: data.metodoPagamento,
-      itens: data.itens.map(item => ({
-        idProduto: item.idProduto,
-        quantidade: item.quantidade
+      metodoPagamentoCodigo: data.metodoPagamentoCodigo,
+      itens: (data.itens || []).map(item => ({
+        idProduto: parseInt(item.idProduto),
+        quantidade: parseInt(item.quantidade)
       })),
     };
     return post('/api/vendas', mapped);

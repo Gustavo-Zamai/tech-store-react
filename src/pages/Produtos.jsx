@@ -133,6 +133,7 @@ export default function Produtos() {
 
   const { confirmState, requestConfirm, cancelConfirm } = useConfirm();
 
+  // Carregar todos os dados
   const load = async () => {
     try {
       const [prods, fors, grps, marcasData, unidData] = await Promise.all([
@@ -157,6 +158,7 @@ export default function Produtos() {
 
   useEffect(() => { load(); }, []);
 
+  // Filtro de busca
   const filtered = useMemo(() => {
     if (!produtos) return [];
     const q = search.toLowerCase().trim();
@@ -168,12 +170,14 @@ export default function Produtos() {
     );
   }, [produtos, search]);
 
+  // Abrir modal para novo produto
   const openNew = () => {
     setEditing(null);
     setForm(emptyForm);
     setModalOpen(true);
   };
 
+  // Abrir modal para edição
   const openEdit = async (id) => {
     try {
       const p = await API.produtos.get(id);
@@ -208,11 +212,13 @@ export default function Produtos() {
         aliquotaCofins: p.aliquotaCofins ?? '',
       });
       setModalOpen(true);
-    } catch {
+    } catch (err) {
       toast.error('Erro ao carregar produto para edição');
+      console.error(err);
     }
   };
 
+  // Excluir produto
   const handleDelete = (id, nome) => requestConfirm(nome, async () => {
     try {
       await API.produtos.delete(id);
@@ -223,6 +229,32 @@ export default function Produtos() {
     }
   });
 
+  // Funções auxiliares para exibir nomes
+  const getMarcaNome = (id) => {
+    if (!id) return '—';
+    const marca = marcas.find(m => m.id === id);
+    return marca?.nome || '—';
+  };
+
+  const getUnidadeSigla = (id) => {
+    if (!id) return '—';
+    const unidade = unidades.find(u => u.id === id);
+    return unidade?.sigla || '—';
+  };
+
+  const getGrupoDescricao = (id) => {
+    if (!id) return '—';
+    const grupo = grupos.find(g => g.id === id);
+    return grupo?.descricao || '—';
+  };
+
+  const getFornecedorNome = (id) => {
+    if (!id) return '—';
+    const fornecedor = fornecedores.find(f => f.id === id);
+    return fornecedor?.nomeCompleto || '—';
+  };
+
+  // Submit do formulário
   const handleSubmit = async (evt) => {
     evt.preventDefault();
     setSaving(true);
@@ -257,6 +289,11 @@ export default function Produtos() {
         aliquotaCofins: form.aliquotaCofins ? parseFloat(form.aliquotaCofins) : undefined,
       };
 
+      // Só envia dataCadastro na criação
+      if (!editing) {
+        data.dataCadastro = new Date().toISOString();
+      }
+
       if (editing) {
         await API.produtos.update(editing.id, data);
       } else {
@@ -267,27 +304,14 @@ export default function Produtos() {
       load();
     } catch (err) {
       toast.error(err.message || 'Erro ao salvar produto');
+      console.error(err);
     } finally {
       setSaving(false);
     }
   };
 
-  const getMarcaNome = (id) => {
-    const marca = marcas.find(m => m.id === id);
-    return marca?.nome || '—';
-  };
-
-  const getSigla = (id) => {
-    const unidade = unidades.find(u => u.id === id);
-    return unidade?.sigla || '—';
-  };
-
-  // Renderização condicional do select de CST/CSOSN
+  // Renderizar select de CST/CSOSN
   const renderCstCsosnSelect = () => {
-    // Se for Simples Nacional, usa CSOSN, senão usa CST
-    const isSimplesNacional = form.regimeTributario === 1 || form.regimeTributario === 2;
-    const opcoes = isSimplesNacional ? CSOSN_OPCOES : CST_ICMS_OPCOES;
-    
     return (
       <select
         className="form-control"
@@ -295,9 +319,17 @@ export default function Produtos() {
         onChange={(e) => setForm({ ...form, cstCsosnIcms: e.target.value })}
       >
         <option value="">— Selecione —</option>
-        {opcoes.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
+        {/* Mostrar ambas as opções (CST e CSOSN) */}
+        <optgroup label="CST (Regime Normal)">
+          {CST_ICMS_OPCOES.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </optgroup>
+        <optgroup label="CSOSN (Simples Nacional)">
+          {CSOSN_OPCOES.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </optgroup>
       </select>
     );
   };
@@ -348,14 +380,19 @@ export default function Produtos() {
               if (stock === 0) badge = 'badge-danger';
               else if (minStock > 0 && stock <= minStock) badge = 'badge-warning';
 
+              // Usar os dados do response ou buscar das listas
+              const grupoNome = p.descricaoGrupo || getGrupoDescricao(p.idGrupo);
+              const marcaNome = p.nomeMarca || getMarcaNome(p.idMarca);
+              const unidadeSigla = p.siglaUnidadeMedida || getUnidadeSigla(p.idUnidadeMedida);
+
               return (
                 <tr key={p.id}>
                   <td><code style={{ fontFamily: 'var(--font-mono)', fontSize: '.8rem', color: 'var(--text-muted)' }}>{p.id}</code></td>
                   <td style={{ fontWeight: 500 }}>{p.nome}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '.8rem' }}>{p.gtinEan ?? '—'}</td>
-                  <td>{p.descricaoGrupo ?? '—'}</td>
-                  <td>{p.nomeMarca ?? getMarcaNome(p.idMarca)}</td>
-                  <td>{p.siglaUnidadeMedida ?? getSigla(p.idUnidadeMedida)}</td>
+                  <td>{grupoNome}</td>
+                  <td>{marcaNome}</td>
+                  <td>{unidadeSigla}</td>
                   <td style={{ fontWeight: 600 }}>{formatCurrency(p.precoVenda)}</td>
                   <td><span className={`badge ${badge}`}>{stock} {p.unidadeComercial || 'UN'}</span></td>
                   <td><StatusBadge ativo={p.ativo} /></td>
@@ -500,7 +537,7 @@ export default function Produtos() {
 
             <div className="grid-2">
               <div className="form-group">
-                <label>Grupo/Categoria *</label>
+                <label>Grupo *</label>
                 <select
                   className="form-control"
                   required
@@ -542,6 +579,9 @@ export default function Produtos() {
                     <option key={m.id} value={m.id}>{m.nome}</option>
                   ))}
                 </select>
+                <small style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>
+                  Cadastre marcas em <strong>Administração → Marcas</strong>
+                </small>
               </div>
               <div className="form-group">
                 <label>Unidade de Medida</label>
@@ -555,6 +595,9 @@ export default function Produtos() {
                     <option key={u.id} value={u.id}>{u.sigla} - {u.descricao}</option>
                   ))}
                 </select>
+                <small style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>
+                  Cadastre unidades em <strong>Administração → Unidades</strong>
+                </small>
               </div>
             </div>
           </div>
@@ -615,7 +658,7 @@ export default function Produtos() {
                   placeholder="UN, KG, LT..."
                 />
                 <small style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>
-                  Unidade usada na venda (ex: UN, KG, LT)
+                  Unidade usada na venda
                 </small>
               </div>
               <div className="form-group">
@@ -627,7 +670,7 @@ export default function Produtos() {
                   placeholder="UN, KG, LT..."
                 />
                 <small style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>
-                  Unidade usada para tributação (ex: UN, KG, LT)
+                  Unidade usada para tributação
                 </small>
               </div>
             </div>
@@ -756,6 +799,9 @@ export default function Produtos() {
             </div>
           </div>
 
+          {/* ============================================ */}
+          {/* BOTÕES */}
+          {/* ============================================ */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem', marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
             <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>

@@ -9,7 +9,7 @@ const TITLES = {
   '/funcionarios': 'Funcionários',
   '/empresas': 'Empresas',
   '/fornecedores': 'Fornecedores',
-  '/categorias': 'Categorias',
+  '/grupos': 'Grupos',
 };
 
 export default function Topbar({ pathname, onHamburger, onOpenApiSettings, refreshSignal }) {

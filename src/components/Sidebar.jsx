@@ -1,5 +1,6 @@
-// components/Sidebar.jsx
+// src/components/Sidebar.jsx
 
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logo from '/logo.png';
@@ -7,7 +8,9 @@ import logo from '/logo.png';
 const NAV_SECTIONS = [
   {
     label: 'Geral',
-    items: [{ to: '/dashboard', icon: '📊', label: 'Dashboard' }],
+    items: [
+      { to: '/dashboard', icon: '📊', label: 'Dashboard' },
+    ],
   },
   {
     label: 'Operações',
@@ -23,7 +26,9 @@ const NAV_SECTIONS = [
       { to: '/funcionarios', icon: '🧑‍💼', label: 'Funcionários' },
       { to: '/empresas', icon: '🏢', label: 'Empresas' },
       { to: '/fornecedores', icon: '🚚', label: 'Fornecedores' },
-      { to: '/categorias', icon: '🏷️', label: 'Categorias' },
+      { to: '/grupos', icon: '🏷️', label: 'Grupos' },
+      { to: '/marcas', icon: '🏷️', label: 'Marcas' },
+      { to: '/unidades-medida', icon: '📏', label: 'Unidades' },
     ],
   },
 ];
@@ -38,7 +43,7 @@ export default function Sidebar({ open, onNavigate }) {
   const empresaNome = user?.nomeEmpresa || '';
 
   const primeiroNome = nomeCompleto.split(' ')[0];
-  const iniciais = nomeCompleto.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
+  const iniciais = nomeCompleto.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
 
   const subInfo = cargo
     ? (empresaNome ? `${cargo} · ${empresaNome}` : cargo)
@@ -48,6 +53,7 @@ export default function Sidebar({ open, onNavigate }) {
     <aside className={`sidebar${open ? ' open' : ''}`}>
       <div className="sidebar-logo">
         <img src={logo} alt="Tech Store Logo" width={40} height={40} />
+        <span className="logo-text">Tech Store</span>
       </div>
 
       <nav className="sidebar-nav">
@@ -59,7 +65,15 @@ export default function Sidebar({ open, onNavigate }) {
                 key={item.to}
                 to={item.to}
                 onClick={onNavigate}
-                className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+                end={item.to === '/dashboard'} // Apenas dashboard usa "end"
+                className={({ isActive }) => {
+                  // Para rotas como /marcas, /unidades-medida, etc.
+                  // Verifica se a rota atual começa com o path
+                  const location = window.location.pathname;
+                  const isActiveRoute = location === item.to || 
+                    (item.to !== '/' && location.startsWith(item.to));
+                  return `nav-item${isActiveRoute ? ' active' : ''}`;
+                }}
               >
                 <span className="nav-icon">{item.icon}</span> {item.label}
               </NavLink>
@@ -69,22 +83,15 @@ export default function Sidebar({ open, onNavigate }) {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="user-info" title={`${nomeCompleto}\n${cargo}\n${empresaNome}`}>
+        <div className="user-info" title={`${nomeCompleto}\n${cargo}`}>
           <div className="user-avatar">
             {imagemUrl
               ? <img src={imagemUrl} alt={primeiroNome} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
               : iniciais}
           </div>
-          <div className="user-details">
+          <div>
             <div className="user-name">{primeiroNome}</div>
-            {/* Agora cargo e empresa ficam em linhas separadas */}
-            <div className="user-role">
-              {cargo && <div className="user-role-line">{cargo}</div>}
-              {empresaNome && <div className="user-role-line">{empresaNome}</div>}
-              {!cargo && !empresaNome && nivelAcesso && (
-                <div className="user-role-line">{nivelAcesso}</div>
-              )}
-            </div>
+            <div className="user-role">{subInfo}</div>
           </div>
         </div>
         <button className="btn btn-logout btn-sm" onClick={logout}>

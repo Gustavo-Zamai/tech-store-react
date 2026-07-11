@@ -12,7 +12,9 @@ import Vendas from './pages/Vendas';
 import Funcionarios from './pages/Funcionarios';
 import Empresas from './pages/Empresas';
 import Fornecedores from './pages/Fornecedores';
-import Categorias from './pages/Categorias';
+import Grupos from './pages/Grupos';
+import Marcas from './pages/Marcas';
+import UnidadesMedida from './pages/UnidadesMedida';
 
 export default function App() {
   return (
@@ -36,7 +38,9 @@ export default function App() {
               <Route path="/funcionarios" element={<Funcionarios />} />
               <Route path="/empresas" element={<Empresas />} />
               <Route path="/fornecedores" element={<Fornecedores />} />
-              <Route path="/categorias" element={<Categorias />} />
+              <Route path="/grupos" element={<Grupos />} />
+              <Route path="/marcas" element={<Marcas />} />
+              <Route path="/unidades-medida" element={<UnidadesMedida />} />
             </Route>
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

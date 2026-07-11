@@ -1,31 +1,35 @@
-// pages/Produtos.jsx
+// src/pages/Produtos.jsx
 
 import { useEffect, useMemo, useState } from 'react';
 import API from '../api/api';
-import { formatCurrency } from '../utils/format';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
 import { useConfirm } from '../components/useConfirm';
+import { formatCurrency, formatDateDisplay } from '../utils/format';
 import { LoadingRow, EmptyRow, StatusBadge } from '../components/TableHelpers';
 
 const emptyForm = {
-  nome: '', 
-  precoVenda: '', 
+  // Dados Básicos
+  nome: '',
+  descricao: '',
+  precoVenda: '',
   precoCompra: '',
-  quantidade: '', 
+  quantidade: '',
+  idFornecedor: '',
+  idGrupo: '',
+  idMarca: '',
+  idUnidadeMedida: '',
   quantidadeMinima: '',
-  idCategoria: '', 
-  idFornecedor: '', 
-  descricao: '', 
   ativo: 'true',
+  
+  // Dados Fiscais
   gtinEan: '',
-  unidadeComercial: 'UN',
-  unidadeTributavel: 'UN',
-  // Campos fiscais
   ncm: '',
   cfop: '',
   cest: '',
+  unidadeComercial: 'UN',
+  unidadeTributavel: 'UN',
   origemMercadoria: '',
   cstCsosnIcms: '',
   aliquotaIcms: '',
@@ -33,20 +37,9 @@ const emptyForm = {
   aliquotaPis: '',
   cstCofins: '',
   aliquotaCofins: '',
-  // ---------- IBS / CBS / Imposto Seletivo ----------
-  cstIbsCbs: '',
-  cClassTrib: '',
-  cBenef: '',
-  aliquotaIbsEstadual: '',
-  aliquotaIbsMunicipal: '',
-  aliquotaCbs: '',
-  sujeitoImpostoSeletivo: 'false',
-  aliquotaImpostoSeletivo: '',
 };
 
-const UNIDADES_MEDIDA = ['UN', 'KG', 'LT', 'MT', 'M2', 'CX', 'PC', 'PCT'];
-
-const ORIGENS_MERCADORIA = [
+const ORIGENS = [
   { value: 0, label: 'Nacional' },
   { value: 1, label: 'Estrangeira - Importação direta' },
   { value: 2, label: 'Estrangeira - Adquirida no mercado interno' },
@@ -54,105 +47,131 @@ const ORIGENS_MERCADORIA = [
   { value: 4, label: 'Estrangeira - Adquirida no mercado interno sem similar nacional' },
   { value: 5, label: 'Estrangeira - Importação direta com similar nacional' },
   { value: 6, label: 'Estrangeira - Adquirida no mercado interno com similar nacional' },
-  { value: 7, label: 'Estrangeira - Importação direta de bem usado' },
-  { value: 8, label: 'Estrangeira - Adquirida no mercado interno de bem usado' },
+  { value: 7, label: 'Estrangeira - Importação direta sem similar nacional (Lei 8.248)' },
+  { value: 8, label: 'Estrangeira - Adquirida no mercado interno sem similar nacional (Lei 8.248)' },
 ];
 
-// Opções para CST IBS/CBS (Grupo UB)
-const CST_IBS_CBS_OPCOES = [
-  { value: '100', label: '100 - Tributado Integralmente' },
-  { value: '110', label: '110 - Tributado com Alíquota Zero' },
-  { value: '120', label: '120 - Isento' },
-  { value: '130', label: '130 - Imune' },
-  { value: '140', label: '140 - Suspenso' },
-  { value: '150', label: '150 - Diferimento' },
-  { value: '160', label: '160 - Não Tributado' },
-  { value: '410', label: '410 - Não Alíquotas (ST)' },
-  { value: '420', label: '420 - Substituição Tributária' },
+const CST_ICMS_OPCOES = [
+  { value: '00', label: '00 - Tributada integralmente' },
+  { value: '10', label: '10 - Tributada e com cobrança do ICMS por substituição tributária' },
+  { value: '20', label: '20 - Com redução de base de cálculo' },
+  { value: '30', label: '30 - Isenta / não tributada e com cobrança do ICMS por substituição tributária' },
+  { value: '40', label: '40 - Isenta' },
+  { value: '41', label: '41 - Não tributada' },
+  { value: '50', label: '50 - Suspensão' },
+  { value: '51', label: '51 - Diferimento' },
+  { value: '60', label: '60 - ICMS cobrado anteriormente por substituição tributária' },
+  { value: '70', label: '70 - Com redução de base de cálculo e cobrança do ICMS por substituição tributária' },
+  { value: '90', label: '90 - Outras' },
 ];
 
-// Opções para cClassTrib (detalhamento do CST)
-const CCLASS_TRIB_OPCOES = [
-  { value: '0101', label: '0101 - Artigo 1º, Inciso I' },
-  { value: '0102', label: '0102 - Artigo 1º, Inciso II' },
-  { value: '0103', label: '0103 - Artigo 1º, Inciso III' },
-  { value: '0201', label: '0201 - Artigo 2º, Inciso I' },
-  { value: '0202', label: '0202 - Artigo 2º, Inciso II' },
-  { value: '0301', label: '0301 - Artigo 3º, Inciso I' },
-  { value: '0302', label: '0302 - Artigo 3º, Inciso II' },
-  { value: '0401', label: '0401 - Artigo 4º, Inciso I' },
-  { value: '0402', label: '0402 - Artigo 4º, Inciso II' },
-  { value: '0501', label: '0501 - Artigo 5º, Inciso I' },
-  { value: '0502', label: '0502 - Artigo 5º, Inciso II' },
-  { value: '0601', label: '0601 - Artigo 6º, Inciso I' },
-  { value: '0602', label: '0602 - Artigo 6º, Inciso II' },
-  { value: '0701', label: '0701 - Artigo 7º, Inciso I' },
-  { value: '0702', label: '0702 - Artigo 7º, Inciso II' },
-  { value: '0801', label: '0801 - Artigo 8º, Inciso I' },
-  { value: '0802', label: '0802 - Artigo 8º, Inciso II' },
-  { value: '0901', label: '0901 - Artigo 9º, Inciso I' },
-  { value: '0902', label: '0902 - Artigo 9º, Inciso II' },
-  { value: '1001', label: '1001 - Artigo 10, Inciso I' },
-  { value: '1002', label: '1002 - Artigo 10, Inciso II' },
-  { value: '1101', label: '1101 - Artigo 11, Inciso I' },
-  { value: '1102', label: '1102 - Artigo 11, Inciso II' },
-  { value: '1201', label: '1201 - Artigo 12, Inciso I' },
-  { value: '1202', label: '1202 - Artigo 12, Inciso II' },
-  { value: '1301', label: '1301 - Artigo 13, Inciso I' },
-  { value: '1302', label: '1302 - Artigo 13, Inciso II' },
+const CSOSN_OPCOES = [
+  { value: '101', label: '101 - Tributada pelo Simples Nacional com permissão de crédito' },
+  { value: '102', label: '102 - Tributada pelo Simples Nacional sem permissão de crédito' },
+  { value: '103', label: '103 - Isenção do ICMS no Simples Nacional para faixa de receita bruta' },
+  { value: '201', label: '201 - Tributada pelo Simples Nacional com permissão de crédito e com cobrança do ICMS por substituição tributária' },
+  { value: '202', label: '202 - Tributada pelo Simples Nacional sem permissão de crédito e com cobrança do ICMS por substituição tributária' },
+  { value: '203', label: '203 - Isenção do ICMS no Simples Nacional para faixa de receita bruta e com cobrança do ICMS por substituição tributária' },
+  { value: '300', label: '300 - Imune' },
+  { value: '400', label: '400 - Não tributada pelo Simples Nacional' },
+  { value: '500', label: '500 - ICMS cobrado anteriormente por substituição tributária (substituído)' },
+  { value: '900', label: '900 - Outras' },
+];
+
+const CST_PIS_COFINS_OPCOES = [
+  { value: '01', label: '01 - Operação Tributável - Base de Cálculo = Valor da Operação Alíquota Normal' },
+  { value: '02', label: '02 - Operação Tributável - Base de Cálculo = Valor da Operação Alíquota Diferenciada' },
+  { value: '03', label: '03 - Operação Tributável - Base de Cálculo = Quantidade Vendida x Alíquota por Unidade de Produto' },
+  { value: '04', label: '04 - Operação Tributável - Tributação Monofásica (Alíquota Zero)' },
+  { value: '05', label: '05 - Operação Tributável por Substituição Tributária' },
+  { value: '06', label: '06 - Operação Tributável - Alíquota Zero' },
+  { value: '07', label: '07 - Operação Isenta da Contribuição' },
+  { value: '08', label: '08 - Operação sem Incidência da Contribuição' },
+  { value: '09', label: '09 - Operação com Suspensão da Contribuição' },
+  { value: '49', label: '49 - Outras Operações de Saída' },
+  { value: '50', label: '50 - Operação com Direito a Crédito - Vinculada Exclusivamente a Receita Tributada no Mercado Interno' },
+  { value: '51', label: '51 - Operação com Direito a Crédito - Vinculada Exclusivamente a Receita Não Tributada no Mercado Interno' },
+  { value: '52', label: '52 - Operação com Direito a Crédito - Vinculada Exclusivamente a Receita de Exportação' },
+  { value: '53', label: '53 - Operação com Direito a Crédito - Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno' },
+  { value: '54', label: '54 - Operação com Direito a Crédito - Vinculada a Receitas Tributadas no Mercado Interno e de Exportação' },
+  { value: '55', label: '55 - Operação com Direito a Crédito - Vinculada a Receitas Não-Tributadas no Mercado Interno e de Exportação' },
+  { value: '56', label: '56 - Operação com Direito a Crédito - Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno e de Exportação' },
+  { value: '60', label: '60 - Crédito Presumido - Operação de Aquisição Vinculada Exclusivamente a Receita Tributada no Mercado Interno' },
+  { value: '61', label: '61 - Crédito Presumido - Operação de Aquisição Vinculada Exclusivamente a Receita Não-Tributada no Mercado Interno' },
+  { value: '62', label: '62 - Crédito Presumido - Operação de Aquisição Vinculada Exclusivamente a Receita de Exportação' },
+  { value: '63', label: '63 - Crédito Presumido - Operação de Aquisição Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno' },
+  { value: '64', label: '64 - Crédito Presumido - Operação de Aquisição Vinculada a Receitas Tributadas no Mercado Interno e de Exportação' },
+  { value: '65', label: '65 - Crédito Presumido - Operação de Aquisição Vinculada a Receitas Não-Tributadas no Mercado Interno e de Exportação' },
+  { value: '66', label: '66 - Crédito Presumido - Operação de Aquisição Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno e de Exportação' },
+  { value: '67', label: '67 - Crédito Presumido - Outras Operações' },
+  { value: '70', label: '70 - Operação de Aquisição sem Direito a Crédito' },
+  { value: '71', label: '71 - Operação de Aquisição com Isenção' },
+  { value: '72', label: '72 - Operação de Aquisição com Suspensão' },
+  { value: '73', label: '73 - Operação de Aquisição com Alíquota Zero' },
+  { value: '74', label: '74 - Operação de Aquisição sem Incidência da Contribuição' },
+  { value: '75', label: '75 - Operação de Aquisição por Substituição Tributária' },
+  { value: '98', label: '98 - Outras Operações de Entrada' },
+  { value: '99', label: '99 - Outras Operações' },
 ];
 
 export default function Produtos() {
   const toast = useToast();
-  // Renomeado de 'produtos' para 'produtosList' para evitar conflito
-  const [produtosList, setProdutosList] = useState(null);
+  const [produtos, setProdutos] = useState(null);
   const [error, setError] = useState(false);
-  const [categorias, setCategorias] = useState([]);
-  const [fornecedores, setFornecedores] = useState([]);
   const [search, setSearch] = useState('');
+
+  // Dados para os selects
+  const [fornecedores, setFornecedores] = useState([]);
+  const [grupos, setGrupos] = useState([]);
+  const [marcas, setMarcas] = useState([]);
+  const [unidades, setUnidades] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [showFiscalFields, setShowFiscalFields] = useState(false);
 
   const { confirmState, requestConfirm, cancelConfirm } = useConfirm();
 
-  const loadAll = async () => {
-    const [prods, cats, fors] = await Promise.allSettled([
-      API.produtos.list(), 
-      API.categorias.list(), 
-      API.fornecedores.list(),
-    ]);
-    if (prods.status === 'fulfilled') { 
-      setProdutosList(prods.value || []); 
-      setError(false); 
-    } else { 
-      setError(true); 
+  const load = async () => {
+    try {
+      const [prods, fors, grps, marcasData, unidData] = await Promise.all([
+        API.produtos.list().catch(() => []),
+        API.fornecedores.list().catch(() => []),
+        API.grupos.list().catch(() => []),
+        API.marcas.list().catch(() => []),
+        API.unidades.list().catch(() => []),
+      ]);
+
+      setProdutos(prods || []);
+      setFornecedores(fors || []);
+      setGrupos(grps || []);
+      setMarcas(marcasData || []);
+      setUnidades(unidData || []);
+      setError(false);
+    } catch (e) {
+      console.error('Erro ao carregar dados:', e);
+      setError(true);
     }
-    if (cats.status === 'fulfilled') setCategorias(cats.value || []);
-    if (fors.status === 'fulfilled') setFornecedores(fors.value || []);
   };
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { load(); }, []);
 
   const filtered = useMemo(() => {
-    if (!produtosList) return [];
+    if (!produtos) return [];
     const q = search.toLowerCase().trim();
-    if (!q) return produtosList;
-    return produtosList.filter((p) => 
-      p.nome?.toLowerCase().includes(q) || 
+    if (!q) return produtos;
+    return produtos.filter((p) =>
+      p.nome?.toLowerCase().includes(q) ||
       p.gtinEan?.includes(q) ||
       p.descricao?.toLowerCase().includes(q)
     );
-  }, [produtosList, search]);
+  }, [produtos, search]);
 
-  const openNew = () => { 
-    setEditing(null); 
-    setForm(emptyForm); 
-    setShowFiscalFields(false);
-    setModalOpen(true); 
+  const openNew = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setModalOpen(true);
   };
 
   const openEdit = async (id) => {
@@ -160,21 +179,26 @@ export default function Produtos() {
       const p = await API.produtos.get(id);
       setEditing(p);
       setForm({
+        // Dados Básicos
         nome: p.nome ?? '',
+        descricao: p.descricao ?? '',
         precoVenda: p.precoVenda ?? '',
         precoCompra: p.precoCompra ?? '',
         quantidade: p.quantidade ?? '',
-        quantidadeMinima: p.quantidadeMinima ?? '',
-        idCategoria: p.idCategoria ?? '',
         idFornecedor: p.idFornecedor ?? '',
-        descricao: p.descricao ?? '',
+        idGrupo: p.idGrupo ?? '',
+        idMarca: p.idMarca ?? '',
+        idUnidadeMedida: p.idUnidadeMedida ?? '',
+        quantidadeMinima: p.quantidadeMinima ?? '',
         ativo: p.ativo === false ? 'false' : 'true',
+        
+        // Dados Fiscais
         gtinEan: p.gtinEan ?? '',
-        unidadeComercial: p.unidadeComercial ?? 'UN',
-        unidadeTributavel: p.unidadeTributavel ?? 'UN',
         ncm: p.ncm ?? '',
         cfop: p.cfop ?? '',
         cest: p.cest ?? '',
+        unidadeComercial: p.unidadeComercial ?? 'UN',
+        unidadeTributavel: p.unidadeTributavel ?? 'UN',
         origemMercadoria: p.origemMercadoria ?? '',
         cstCsosnIcms: p.cstCsosnIcms ?? '',
         aliquotaIcms: p.aliquotaIcms ?? '',
@@ -182,54 +206,48 @@ export default function Produtos() {
         aliquotaPis: p.aliquotaPis ?? '',
         cstCofins: p.cstCofins ?? '',
         aliquotaCofins: p.aliquotaCofins ?? '',
-        // ---------- IBS / CBS / Imposto Seletivo ----------
-        cstIbsCbs: p.cstIbsCbs ?? '',
-        cClassTrib: p.cClassTrib ?? '',
-        cBenef: p.cBenef ?? '',
-        aliquotaIbsEstadual: p.aliquotaIbsEstadual ?? '',
-        aliquotaIbsMunicipal: p.aliquotaIbsMunicipal ?? '',
-        aliquotaCbs: p.aliquotaCbs ?? '',
-        sujeitoImpostoSeletivo: p.sujeitoImpostoSeletivo ? 'true' : 'false',
-        aliquotaImpostoSeletivo: p.aliquotaImpostoSeletivo ?? '',
       });
-      setShowFiscalFields(true);
       setModalOpen(true);
-    } catch (err) {
-      toast.error('Erro ao carregar produto');
-      console.error(err);
+    } catch {
+      toast.error('Erro ao carregar produto para edição');
     }
   };
 
   const handleDelete = (id, nome) => requestConfirm(nome, async () => {
-    try { 
-      await API.produtos.delete(id); 
-      toast.success('Produto excluído!'); 
-      loadAll(); 
-    } catch (e) { 
-      toast.error(e.message); 
+    try {
+      await API.produtos.delete(id);
+      toast.success('Produto excluído!');
+      load();
+    } catch (e) {
+      toast.error(e.message);
     }
   });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (evt) => {
+    evt.preventDefault();
     setSaving(true);
     try {
       const data = {
+        // Dados Básicos
         nome: form.nome,
-        precoVenda: parseFloat(form.precoVenda) || 0,
-        precoCompra: parseFloat(form.precoCompra) || 0,
-        quantidade: parseInt(form.quantidade, 10) || 0,
-        quantidadeMinima: form.quantidadeMinima ? parseInt(form.quantidadeMinima, 10) : 0,
-        idCategoria: form.idCategoria ? parseInt(form.idCategoria) : undefined,
-        idFornecedor: form.idFornecedor ? parseInt(form.idFornecedor) : undefined,
         descricao: form.descricao || undefined,
+        precoVenda: parseFloat(form.precoVenda),
+        precoCompra: parseFloat(form.precoCompra),
+        quantidade: parseInt(form.quantidade) || 0,
+        idFornecedor: parseInt(form.idFornecedor),
+        idGrupo: parseInt(form.idGrupo),
+        idMarca: form.idMarca ? parseInt(form.idMarca) : undefined,
+        idUnidadeMedida: form.idUnidadeMedida ? parseInt(form.idUnidadeMedida) : undefined,
+        quantidadeMinima: form.quantidadeMinima ? parseInt(form.quantidadeMinima) : 0,
         ativo: form.ativo === 'true',
+        
+        // Dados Fiscais
         gtinEan: form.gtinEan || undefined,
-        unidadeComercial: form.unidadeComercial || 'UN',
-        unidadeTributavel: form.unidadeTributavel || 'UN',
         ncm: form.ncm || undefined,
         cfop: form.cfop || undefined,
         cest: form.cest || undefined,
+        unidadeComercial: form.unidadeComercial || 'UN',
+        unidadeTributavel: form.unidadeTributavel || 'UN',
         origemMercadoria: form.origemMercadoria ? parseInt(form.origemMercadoria) : undefined,
         cstCsosnIcms: form.cstCsosnIcms || undefined,
         aliquotaIcms: form.aliquotaIcms ? parseFloat(form.aliquotaIcms) : undefined,
@@ -237,17 +255,8 @@ export default function Produtos() {
         aliquotaPis: form.aliquotaPis ? parseFloat(form.aliquotaPis) : undefined,
         cstCofins: form.cstCofins || undefined,
         aliquotaCofins: form.aliquotaCofins ? parseFloat(form.aliquotaCofins) : undefined,
-        // ---------- IBS / CBS / Imposto Seletivo ----------
-        cstIbsCbs: form.cstIbsCbs || undefined,
-        cClassTrib: form.cClassTrib || undefined,
-        cBenef: form.cBenef || undefined,
-        aliquotaIbsEstadual: form.aliquotaIbsEstadual ? parseFloat(form.aliquotaIbsEstadual) : undefined,
-        aliquotaIbsMunicipal: form.aliquotaIbsMunicipal ? parseFloat(form.aliquotaIbsMunicipal) : undefined,
-        aliquotaCbs: form.aliquotaCbs ? parseFloat(form.aliquotaCbs) : undefined,
-        sujeitoImpostoSeletivo: form.sujeitoImpostoSeletivo === 'true',
-        aliquotaImpostoSeletivo: form.aliquotaImpostoSeletivo ? parseFloat(form.aliquotaImpostoSeletivo) : undefined,
       };
-      
+
       if (editing) {
         await API.produtos.update(editing.id, data);
       } else {
@@ -255,7 +264,7 @@ export default function Produtos() {
       }
       toast.success(editing ? 'Produto atualizado!' : 'Produto criado!');
       setModalOpen(false);
-      loadAll();
+      load();
     } catch (err) {
       toast.error(err.message || 'Erro ao salvar produto');
     } finally {
@@ -263,14 +272,34 @@ export default function Produtos() {
     }
   };
 
-  // Verifica se o produto está com estoque baixo
-  const getEstoqueBadge = (produto) => {
-    const estoque = produto.quantidade ?? 0;
-    const minimo = produto.quantidadeMinima ?? 0;
+  const getMarcaNome = (id) => {
+    const marca = marcas.find(m => m.id === id);
+    return marca?.nome || '—';
+  };
+
+  const getSigla = (id) => {
+    const unidade = unidades.find(u => u.id === id);
+    return unidade?.sigla || '—';
+  };
+
+  // Renderização condicional do select de CST/CSOSN
+  const renderCstCsosnSelect = () => {
+    // Se for Simples Nacional, usa CSOSN, senão usa CST
+    const isSimplesNacional = form.regimeTributario === 1 || form.regimeTributario === 2;
+    const opcoes = isSimplesNacional ? CSOSN_OPCOES : CST_ICMS_OPCOES;
     
-    if (estoque === 0) return 'badge-danger';
-    if (minimo > 0 && estoque <= minimo) return 'badge-warning';
-    return 'badge-success';
+    return (
+      <select
+        className="form-control"
+        value={form.cstCsosnIcms}
+        onChange={(e) => setForm({ ...form, cstCsosnIcms: e.target.value })}
+      >
+        <option value="">— Selecione —</option>
+        {opcoes.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    );
   };
 
   return (
@@ -299,35 +328,36 @@ export default function Produtos() {
               <th>#</th>
               <th>Nome</th>
               <th>GTIN/EAN</th>
-              <th>Categoria</th>
-              <th>Fornecedor</th>
+              <th>Grupo</th>
+              <th>Marca</th>
+              <th>Unidade</th>
               <th>Preço Venda</th>
               <th>Estoque</th>
-              <th>Unid.</th>
               <th>Situação</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            {produtosList === null && !error && <LoadingRow colSpan={10} />}
+            {produtos === null && !error && <LoadingRow colSpan={10} />}
             {error && <EmptyRow colSpan={10} message="Erro ao carregar produtos." />}
-            {produtosList !== null && filtered.length === 0 && <EmptyRow colSpan={10} />}
+            {produtos !== null && filtered.length === 0 && <EmptyRow colSpan={10} />}
             {filtered.map((p) => {
               const stock = p.quantidade ?? 0;
+              const minStock = p.quantidadeMinima ?? 0;
+              let badge = 'badge-success';
+              if (stock === 0) badge = 'badge-danger';
+              else if (minStock > 0 && stock <= minStock) badge = 'badge-warning';
+
               return (
                 <tr key={p.id}>
                   <td><code style={{ fontFamily: 'var(--font-mono)', fontSize: '.8rem', color: 'var(--text-muted)' }}>{p.id}</code></td>
                   <td style={{ fontWeight: 500 }}>{p.nome}</td>
                   <td style={{ fontFamily: 'var(--font-mono)', fontSize: '.8rem' }}>{p.gtinEan ?? '—'}</td>
-                  <td>{p.descricaoCategoria ?? '—'}</td>
-                  <td>{p.nomeFornecedor ?? '—'}</td>
+                  <td>{p.descricaoGrupo ?? '—'}</td>
+                  <td>{p.nomeMarca ?? getMarcaNome(p.idMarca)}</td>
+                  <td>{p.siglaUnidadeMedida ?? getSigla(p.idUnidadeMedida)}</td>
                   <td style={{ fontWeight: 600 }}>{formatCurrency(p.precoVenda)}</td>
-                  <td>
-                    <span className={`badge ${getEstoqueBadge(p)}`}>
-                      {stock} {p.unidadeComercial || 'UN'}
-                    </span>
-                  </td>
-                  <td>{p.unidadeComercial || 'UN'}</td>
+                  <td><span className={`badge ${badge}`}>{stock} {p.unidadeComercial || 'UN'}</span></td>
                   <td><StatusBadge ativo={p.ativo} /></td>
                   <td>
                     <div style={{ display: 'flex', gap: '.5rem' }}>
@@ -345,248 +375,388 @@ export default function Produtos() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} maxWidth={820}>
         <h2>{editing ? 'Editar Produto' : 'Novo Produto'}</h2>
         <form onSubmit={handleSubmit}>
-          {/* Dados Básicos */}
-          <div className="form-group">
-            <label>Nome *</label>
-            <input className="form-control" required value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-          </div>
+          {/* ============================================ */}
+          {/* SEÇÃO 1: DADOS BÁSICOS */}
+          {/* ============================================ */}
+          <div style={{ 
+            background: 'var(--bg-surface)', 
+            padding: '1rem', 
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '1rem',
+            border: '1px solid var(--border)'
+          }}>
+            <h4 style={{ fontSize: '.875rem', color: 'var(--accent)', marginBottom: '.75rem' }}>
+              📦 Dados Básicos
+            </h4>
 
-          <div className="grid-2">
-            <div className="form-group">
-              <label>GTIN/EAN (Código de Barras)</label>
-              <input className="form-control" value={form.gtinEan}
-                onChange={(e) => setForm({ ...form, gtinEan: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Unidade Comercial</label>
-              <select className="form-control" value={form.unidadeComercial}
-                onChange={(e) => setForm({ ...form, unidadeComercial: e.target.value })}>
-                {UNIDADES_MEDIDA.map(u => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid-3">
-            <div className="form-group">
-              <label>Preço de Venda *</label>
-              <input className="form-control" type="number" step="0.01" min="0" required
-                value={form.precoVenda} onChange={(e) => setForm({ ...form, precoVenda: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Preço de Compra *</label>
-              <input className="form-control" type="number" step="0.01" min="0" required
-                value={form.precoCompra} onChange={(e) => setForm({ ...form, precoCompra: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label>Quantidade em Estoque *</label>
-              <input className="form-control" type="number" min="0" required
-                value={form.quantidade} onChange={(e) => setForm({ ...form, quantidade: e.target.value })} />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Quantidade Mínima (alerta)</label>
-            <input className="form-control" type="number" min="0"
-              value={form.quantidadeMinima} onChange={(e) => setForm({ ...form, quantidadeMinima: e.target.value })} 
-              placeholder="Quantidade mínima para alerta" />
-          </div>
-
-          <div className="grid-2">
-            <div className="form-group">
-              <label>Categoria *</label>
-              <select className="form-control" required value={form.idCategoria}
-                onChange={(e) => setForm({ ...form, idCategoria: e.target.value })}>
-                <option value="">— Selecione —</option>
-                {categorias.map((c) => (
-                  <option key={c.id} value={c.id}>{c.descricao}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Fornecedor *</label>
-              <select className="form-control" required value={form.idFornecedor}
-                onChange={(e) => setForm({ ...form, idFornecedor: e.target.value })}>
-                <option value="">— Selecione —</option>
-                {fornecedores.map((f) => (
-                  <option key={f.id} value={f.id}>{f.nomeCompleto}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Descrição</label>
-            <textarea className="form-control" rows={2} value={form.descricao}
-              onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
-          </div>
-
-          {/* Botão para mostrar/ocultar dados fiscais */}
-          <button 
-            type="button" 
-            className="btn btn-secondary btn-sm" 
-            onClick={() => setShowFiscalFields(!showFiscalFields)}
-            style={{ marginBottom: '1rem' }}
-          >
-            {showFiscalFields ? '▼ Ocultar' : '▶ Mostrar'} Dados Fiscais
-          </button>
-
-          {showFiscalFields && (
-            <div style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginBottom: '1rem' }}>
-              {/* ICMS / PIS / COFINS */}
-              <h4 style={{ fontSize: '.875rem', marginBottom: '.75rem', color: 'var(--text-secondary)' }}>ICMS / PIS / COFINS</h4>
-              
-              <div className="grid-3">
-                <div className="form-group">
-                  <label>NCM</label>
-                  <input className="form-control" value={form.ncm}
-                    onChange={(e) => setForm({ ...form, ncm: e.target.value })} placeholder="Ex: 8517.12.00" />
-                </div>
-                <div className="form-group">
-                  <label>CFOP</label>
-                  <input className="form-control" value={form.cfop}
-                    onChange={(e) => setForm({ ...form, cfop: e.target.value })} placeholder="Ex: 5102" />
-                </div>
-                <div className="form-group">
-                  <label>CEST</label>
-                  <input className="form-control" value={form.cest}
-                    onChange={(e) => setForm({ ...form, cest: e.target.value })} placeholder="Ex: 01.001.00" />
-                </div>
-              </div>
-
+            <div className="grid-2">
               <div className="form-group">
-                <label>Origem da Mercadoria</label>
-                <select className="form-control" value={form.origemMercadoria}
-                  onChange={(e) => setForm({ ...form, origemMercadoria: e.target.value })}>
+                <label>Nome *</label>
+                <input
+                  className="form-control"
+                  required
+                  value={form.nome}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>GTIN/EAN</label>
+                <input
+                  className="form-control"
+                  value={form.gtinEan}
+                  onChange={(e) => setForm({ ...form, gtinEan: e.target.value })}
+                  placeholder="Código de barras"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Descrição</label>
+              <textarea
+                className="form-control"
+                rows={2}
+                value={form.descricao}
+                onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+              />
+            </div>
+
+            <div className="grid-3">
+              <div className="form-group">
+                <label>Preço de Venda *</label>
+                <input
+                  className="form-control"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={form.precoVenda}
+                  onChange={(e) => setForm({ ...form, precoVenda: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Preço de Compra *</label>
+                <input
+                  className="form-control"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={form.precoCompra}
+                  onChange={(e) => setForm({ ...form, precoCompra: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Quantidade *</label>
+                <input
+                  className="form-control"
+                  type="number"
+                  min="0"
+                  required
+                  value={form.quantidade}
+                  onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid-2">
+              <div className="form-group">
+                <label>Quantidade Mínima</label>
+                <input
+                  className="form-control"
+                  type="number"
+                  min="0"
+                  value={form.quantidadeMinima}
+                  onChange={(e) => setForm({ ...form, quantidadeMinima: e.target.value })}
+                  placeholder="Quantidade para alerta de estoque baixo"
+                />
+              </div>
+              <div className="form-group">
+                <label>Situação</label>
+                <select
+                  className="form-control"
+                  value={form.ativo}
+                  onChange={(e) => setForm({ ...form, ativo: e.target.value })}
+                >
+                  <option value="true">Ativo</option>
+                  <option value="false">Inativo</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* ============================================ */}
+          {/* SEÇÃO 2: RELACIONAMENTOS */}
+          {/* ============================================ */}
+          <div style={{ 
+            background: 'var(--bg-surface)', 
+            padding: '1rem', 
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '1rem',
+            border: '1px solid var(--border)'
+          }}>
+            <h4 style={{ fontSize: '.875rem', color: 'var(--accent)', marginBottom: '.75rem' }}>
+              🔗 Relacionamentos
+            </h4>
+
+            <div className="grid-2">
+              <div className="form-group">
+                <label>Grupo/Categoria *</label>
+                <select
+                  className="form-control"
+                  required
+                  value={form.idGrupo}
+                  onChange={(e) => setForm({ ...form, idGrupo: e.target.value })}
+                >
                   <option value="">— Selecione —</option>
-                  {ORIGENS_MERCADORIA.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
+                  {grupos.map((g) => (
+                    <option key={g.id} value={g.id}>{g.descricao}</option>
                   ))}
                 </select>
               </div>
+              <div className="form-group">
+                <label>Fornecedor *</label>
+                <select
+                  className="form-control"
+                  required
+                  value={form.idFornecedor}
+                  onChange={(e) => setForm({ ...form, idFornecedor: e.target.value })}
+                >
+                  <option value="">— Selecione —</option>
+                  {fornecedores.map((f) => (
+                    <option key={f.id} value={f.id}>{f.nomeCompleto}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
+            <div className="grid-2">
+              <div className="form-group">
+                <label>Marca</label>
+                <select
+                  className="form-control"
+                  value={form.idMarca}
+                  onChange={(e) => setForm({ ...form, idMarca: e.target.value })}
+                >
+                  <option value="">— Selecione —</option>
+                  {marcas.map((m) => (
+                    <option key={m.id} value={m.id}>{m.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Unidade de Medida</label>
+                <select
+                  className="form-control"
+                  value={form.idUnidadeMedida}
+                  onChange={(e) => setForm({ ...form, idUnidadeMedida: e.target.value })}
+                >
+                  <option value="">— Selecione —</option>
+                  {unidades.map((u) => (
+                    <option key={u.id} value={u.id}>{u.sigla} - {u.descricao}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* ============================================ */}
+          {/* SEÇÃO 3: DADOS FISCAIS */}
+          {/* ============================================ */}
+          <div style={{ 
+            background: 'var(--bg-surface)', 
+            padding: '1rem', 
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '1rem',
+            border: '1px solid var(--border)'
+          }}>
+            <h4 style={{ fontSize: '.875rem', color: 'var(--accent)', marginBottom: '.75rem' }}>
+              📄 Dados Fiscais (NFe/NFC-e)
+            </h4>
+
+            {/* NCM, CFOP, CEST */}
+            <div className="grid-3">
+              <div className="form-group">
+                <label>NCM</label>
+                <input
+                  className="form-control"
+                  value={form.ncm}
+                  onChange={(e) => setForm({ ...form, ncm: e.target.value })}
+                  placeholder="Ex: 8517.12.00"
+                />
+              </div>
+              <div className="form-group">
+                <label>CFOP</label>
+                <input
+                  className="form-control"
+                  value={form.cfop}
+                  onChange={(e) => setForm({ ...form, cfop: e.target.value })}
+                  placeholder="Ex: 5102"
+                />
+              </div>
+              <div className="form-group">
+                <label>CEST</label>
+                <input
+                  className="form-control"
+                  value={form.cest}
+                  onChange={(e) => setForm({ ...form, cest: e.target.value })}
+                  placeholder="Ex: 28.001.00"
+                />
+              </div>
+            </div>
+
+            {/* Unidades Comercial e Tributável */}
+            <div className="grid-2">
+              <div className="form-group">
+                <label>Unidade Comercial</label>
+                <input
+                  className="form-control"
+                  value={form.unidadeComercial}
+                  onChange={(e) => setForm({ ...form, unidadeComercial: e.target.value })}
+                  placeholder="UN, KG, LT..."
+                />
+                <small style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>
+                  Unidade usada na venda (ex: UN, KG, LT)
+                </small>
+              </div>
+              <div className="form-group">
+                <label>Unidade Tributável</label>
+                <input
+                  className="form-control"
+                  value={form.unidadeTributavel}
+                  onChange={(e) => setForm({ ...form, unidadeTributavel: e.target.value })}
+                  placeholder="UN, KG, LT..."
+                />
+                <small style={{ color: 'var(--text-muted)', fontSize: '.75rem' }}>
+                  Unidade usada para tributação (ex: UN, KG, LT)
+                </small>
+              </div>
+            </div>
+
+            {/* Origem da Mercadoria */}
+            <div className="form-group">
+              <label>Origem da Mercadoria</label>
+              <select
+                className="form-control"
+                value={form.origemMercadoria}
+                onChange={(e) => setForm({ ...form, origemMercadoria: e.target.value })}
+              >
+                <option value="">— Selecione —</option>
+                {ORIGENS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* ICMS */}
+            <div style={{ 
+              marginTop: '.75rem', 
+              paddingTop: '.75rem', 
+              borderTop: '1px solid var(--border)' 
+            }}>
+              <h5 style={{ fontSize: '.8rem', color: 'var(--text-secondary)', marginBottom: '.5rem' }}>
+                ICMS
+              </h5>
               <div className="grid-2">
                 <div className="form-group">
-                  <label>CST/CSOSN ICMS</label>
-                  <input className="form-control" value={form.cstCsosnIcms}
-                    onChange={(e) => setForm({ ...form, cstCsosnIcms: e.target.value })} placeholder="Ex: 500" />
+                  <label>CST / CSOSN ICMS</label>
+                  {renderCstCsosnSelect()}
                 </div>
                 <div className="form-group">
                   <label>Alíquota ICMS (%)</label>
-                  <input className="form-control" type="number" step="0.01" min="0" max="100" value={form.aliquotaIcms}
-                    onChange={(e) => setForm({ ...form, aliquotaIcms: e.target.value })} placeholder="Ex: 18.00" />
-                </div>
-              </div>
-
-              <div className="grid-3">
-                <div className="form-group">
-                  <label>CST PIS</label>
-                  <input className="form-control" value={form.cstPis}
-                    onChange={(e) => setForm({ ...form, cstPis: e.target.value })} placeholder="Ex: 01" />
-                </div>
-                <div className="form-group">
-                  <label>Alíquota PIS (%)</label>
-                  <input className="form-control" type="number" step="0.01" min="0" max="100" value={form.aliquotaPis}
-                    onChange={(e) => setForm({ ...form, aliquotaPis: e.target.value })} placeholder="Ex: 1.65" />
-                </div>
-                <div className="form-group">
-                  <label>Alíquota COFINS (%)</label>
-                  <input className="form-control" type="number" step="0.01" min="0" max="100" value={form.aliquotaCofins}
-                    onChange={(e) => setForm({ ...form, aliquotaCofins: e.target.value })} placeholder="Ex: 7.60" />
-                </div>
-              </div>
-
-              <hr style={{ borderColor: 'var(--border)', margin: '1rem 0' }} />
-
-              {/* IBS / CBS / Imposto Seletivo - Reforma Tributária */}
-              <h4 style={{ fontSize: '.875rem', marginBottom: '.75rem', color: 'var(--accent)' }}>
-                🏛️ IBS / CBS / Imposto Seletivo (Reforma Tributária - LC 214/2025)
-              </h4>
-              <p style={{ fontSize: '.75rem', color: 'var(--text-muted)', marginBottom: '.75rem' }}>
-                Obrigatório desde jan/2026. Validações plenas a partir de 03/08/2026 para Regime Normal (CRT=3).
-              </p>
-
-              <div className="grid-3">
-                <div className="form-group">
-                  <label>CST IBS/CBS</label>
-                  <select className="form-control" value={form.cstIbsCbs}
-                    onChange={(e) => setForm({ ...form, cstIbsCbs: e.target.value })}>
-                    <option value="">— Selecione —</option>
-                    {CST_IBS_CBS_OPCOES.map(o => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>cClassTrib (Detalhamento CST)</label>
-                  <select className="form-control" value={form.cClassTrib}
-                    onChange={(e) => setForm({ ...form, cClassTrib: e.target.value })}>
-                    <option value="">— Selecione —</option>
-                    {CCLASS_TRIB_OPCOES.map(o => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>cBenef (Cód. Benefício Fiscal)</label>
-                  <input className="form-control" value={form.cBenef}
-                    onChange={(e) => setForm({ ...form, cBenef: e.target.value })} 
-                    placeholder="Ex: 123456" />
-                </div>
-              </div>
-
-              <div className="grid-3">
-                <div className="form-group">
-                  <label>Alíq. IBS Estadual (%)</label>
-                  <input className="form-control" type="number" step="0.001" min="0" value={form.aliquotaIbsEstadual}
-                    onChange={(e) => setForm({ ...form, aliquotaIbsEstadual: e.target.value })} 
-                    placeholder="Ex: 8.000" />
-                </div>
-                <div className="form-group">
-                  <label>Alíq. IBS Municipal (%)</label>
-                  <input className="form-control" type="number" step="0.001" min="0" value={form.aliquotaIbsMunicipal}
-                    onChange={(e) => setForm({ ...form, aliquotaIbsMunicipal: e.target.value })} 
-                    placeholder="Ex: 3.000" />
-                </div>
-                <div className="form-group">
-                  <label>Alíq. CBS (%)</label>
-                  <input className="form-control" type="number" step="0.001" min="0" value={form.aliquotaCbs}
-                    onChange={(e) => setForm({ ...form, aliquotaCbs: e.target.value })} 
-                    placeholder="Ex: 7.000" />
-                </div>
-              </div>
-
-              <div className="grid-2">
-                <div className="form-group">
-                  <label>Sujeito a Imposto Seletivo ("Imposto do Pecado")</label>
-                  <select className="form-control" value={form.sujeitoImpostoSeletivo}
-                    onChange={(e) => setForm({ ...form, sujeitoImpostoSeletivo: e.target.value })}>
-                    <option value="false">Não</option>
-                    <option value="true">Sim (cigarro, bebidas, veículos poluentes, etc)</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Alíq. Imposto Seletivo (%)</label>
-                  <input className="form-control" type="number" step="0.001" min="0" value={form.aliquotaImpostoSeletivo}
-                    onChange={(e) => setForm({ ...form, aliquotaImpostoSeletivo: e.target.value })} 
-                    placeholder="Ex: 15.000" />
+                  <input
+                    className="form-control"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={form.aliquotaIcms}
+                    onChange={(e) => setForm({ ...form, aliquotaIcms: e.target.value })}
+                    placeholder="Ex: 18.00"
+                  />
                 </div>
               </div>
             </div>
-          )}
 
-          <div className="form-group">
-            <label>Situação</label>
-            <select className="form-control" value={form.ativo}
-              onChange={(e) => setForm({ ...form, ativo: e.target.value })}>
-              <option value="true">Ativo</option>
-              <option value="false">Inativo</option>
-            </select>
+            {/* PIS */}
+            <div style={{ 
+              marginTop: '.75rem', 
+              paddingTop: '.75rem', 
+              borderTop: '1px solid var(--border)' 
+            }}>
+              <h5 style={{ fontSize: '.8rem', color: 'var(--text-secondary)', marginBottom: '.5rem' }}>
+                PIS
+              </h5>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label>CST PIS</label>
+                  <select
+                    className="form-control"
+                    value={form.cstPis}
+                    onChange={(e) => setForm({ ...form, cstPis: e.target.value })}
+                  >
+                    <option value="">— Selecione —</option>
+                    {CST_PIS_COFINS_OPCOES.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Alíquota PIS (%)</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={form.aliquotaPis}
+                    onChange={(e) => setForm({ ...form, aliquotaPis: e.target.value })}
+                    placeholder="Ex: 1.65"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* COFINS */}
+            <div style={{ 
+              marginTop: '.75rem', 
+              paddingTop: '.75rem', 
+              borderTop: '1px solid var(--border)' 
+            }}>
+              <h5 style={{ fontSize: '.8rem', color: 'var(--text-secondary)', marginBottom: '.5rem' }}>
+                COFINS
+              </h5>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label>CST COFINS</label>
+                  <select
+                    className="form-control"
+                    value={form.cstCofins}
+                    onChange={(e) => setForm({ ...form, cstCofins: e.target.value })}
+                  >
+                    <option value="">— Selecione —</option>
+                    {CST_PIS_COFINS_OPCOES.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Alíquota COFINS (%)</label>
+                  <input
+                    className="form-control"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={form.aliquotaCofins}
+                    onChange={(e) => setForm({ ...form, aliquotaCofins: e.target.value })}
+                    placeholder="Ex: 7.60"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem', marginTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '.75rem', marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
             <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? <><span className="spinner" /> Aguarde...</> : (editing ? 'Salvar' : 'Criar')}

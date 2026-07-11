@@ -224,26 +224,26 @@ const fornecedores = {
   delete: (id) => del(`/api/fornecedores/${id}`),
 };
 
-// ── Categorias ────────────────────────────────
-const categorias = {
-  list: () => get('/api/categorias'),
-  get: (id) => get(`/api/categorias/${id}`),
+// ── Grupos ────────────────────────────────────
+const grupos = {
+  list: () => get('/api/grupos'),
+  get: (id) => get(`/api/grupos/${id}`),
   create: (data) => {
     const mapped = {
       descricao: data.descricao || data.nome,
       ativo: data.ativo !== undefined ? data.ativo : true,
       dataCadastro: data.dataCadastro,
     };
-    return post('/api/categorias', mapped);
+    return post('/api/grupos', mapped);
   },
   update: (id, data) => {
     const mapped = {
       descricao: data.descricao || data.nome,
       ativo: data.ativo !== undefined ? data.ativo : true,
     };
-    return put(`/api/categorias/${id}`, mapped);
+    return put(`/api/grupos/${id}`, mapped);
   },
-  delete: (id) => del(`/api/categorias/${id}`),
+  delete: (id) => del(`/api/grupos/${id}`),
 };
 
 // ── Produtos ──────────────────────────────────
@@ -260,7 +260,7 @@ const produtos = {
       precoCompra: data.precoCompra !== undefined ? parseFloat(data.precoCompra) : (data.precoCusto ? parseFloat(data.precoCusto) : 0),
       quantidade: data.quantidade !== undefined ? parseInt(data.quantidade) : (data.quantidadeEstoque ? parseInt(data.quantidadeEstoque) : 0),
       idFornecedor: data.idFornecedor ? parseInt(data.idFornecedor) : undefined,
-      idCategoria: data.idCategoria ? parseInt(data.idCategoria) : undefined,
+      idGrupo: data.idGrupo ? parseInt(data.idGrupo) : undefined,
       quantidadeMinima: data.quantidadeMinima !== undefined ? parseInt(data.quantidadeMinima) : (data.estoqueMinimo ? parseInt(data.estoqueMinimo) : 0),
       dataCadastro: data.dataCadastro,
       ativo: data.ativo !== undefined ? data.ativo : true,
@@ -296,7 +296,7 @@ const produtos = {
       precoCompra: data.precoCompra !== undefined ? parseFloat(data.precoCompra) : (data.precoCusto ? parseFloat(data.precoCusto) : 0),
       quantidade: data.quantidade !== undefined ? parseInt(data.quantidade) : (data.quantidadeEstoque ? parseInt(data.quantidadeEstoque) : 0),
       idFornecedor: data.idFornecedor ? parseInt(data.idFornecedor) : undefined,
-      idCategoria: data.idCategoria ? parseInt(data.idCategoria) : undefined,
+      idGrupo: data.idGrupo ? parseInt(data.idGrupo) : undefined,
       quantidadeMinima: data.quantidadeMinima !== undefined ? parseInt(data.quantidadeMinima) : (data.estoqueMinimo ? parseInt(data.estoqueMinimo) : 0),
       ativo: data.ativo !== undefined ? data.ativo : true,
       ncm: data.ncm,
@@ -390,6 +390,25 @@ const vendas = {
   delete: (id) => del(`/api/vendas/${id}`),
 };
 
+// ── Marcas ────────────────────────────────────
+const marcas = {
+  list:   ()       => get('/api/marcas'),
+  get:    (id)     => get(`/api/marcas/${id}`),
+  create: (data)   => post('/api/marcas', data),
+  update: (id, d)  => put(`/api/marcas/${id}`, d),
+  delete: (id)     => del(`/api/marcas/${id}`),
+};
+
+// ── Unidades de Medida ────────────────────────
+const unidades = {
+  list:   ()       => get('/api/unidades-medida'),
+  get:    (id)     => get(`/api/unidades-medida/${id}`),
+  create: (data)   => post('/api/unidades-medida', data),
+  update: (id, d)  => put(`/api/unidades-medida/${id}`, d),
+  delete: (id)     => del(`/api/unidades-medida/${id}`),
+};
+
+
 const API = {
   setBaseURL,
   getBaseURL,
@@ -398,10 +417,12 @@ const API = {
   empresas,
   funcionarios,
   fornecedores,
-  categorias,
+  grupos,
   produtos,
   clientes,
   vendas,
+  marcas,
+  unidades,
 };
 
 export default API;

@@ -1,107 +1,95 @@
-import { useEffect, useState } from 'react';
-import API from '../api/api';
-import { formatCurrency, formatDateDisplay } from '../utils/format';
-import { Spinner, EmptyRow, LoadingRow } from '../components/TableHelpers';
+// src/components/Sidebar.jsx
 
-const STAT_LABELS = [
-  ['produtos', 'Produtos'],
-  ['clientes', 'Clientes'],
-  ['vendas', 'Vendas'],
-  ['funcionarios', 'Funcionários'],
-  ['fornecedores', 'Fornecedores'],
-  ['categorias', 'Categorias'],
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import logo from '/logo.png';
+
+const NAV_SECTIONS = [
+  {
+    label: 'Geral',
+    items: [
+      { to: '/dashboard', icon: '📊', label: 'Dashboard' },
+    ],
+  },
+  {
+    label: 'Operações',
+    items: [
+      { to: '/vendas', icon: '🛒', label: 'Vendas' },
+      { to: '/produtos', icon: '📦', label: 'Produtos' },
+      { to: '/clientes', icon: '👤', label: 'Clientes' },
+    ],
+  },
+  {
+    label: 'Administração',
+    items: [
+      { to: '/funcionarios', icon: '🧑‍💼', label: 'Funcionários' },
+      { to: '/empresas', icon: '🏢', label: 'Empresas' },
+      { to: '/fornecedores', icon: '🚚', label: 'Fornecedores' },
+      { to: '/grupos ', icon: '🏷️', label: 'Grupos' },
+      { to: '/marcas', icon: '🏷️', label: 'Marcas' },
+      { to: '/unidades-medida', icon: '📏', label: 'Unidades' },
+    ],
+  },
 ];
 
-export default function Dashboard() {
-  const [counts, setCounts] = useState(null);
-  const [ultimasVendas, setUltimasVendas] = useState(null);
-  const [vendasError, setVendasError] = useState(false);
+export default function Sidebar({ open, onNavigate }) {
+  const { user, logout } = useAuth();
 
-  useEffect(() => {
-    let cancelled = false;
+  const nomeCompleto = user?.nomeCompleto || 'Usuário';
+  const cargo = user?.cargo || '';
+  const nivelAcesso = user?.nivelAcesso || '';
+  const imagemUrl = user?.imagemUrl || '';
+  const empresaNome = user?.nomeEmpresa || '';
 
-    (async () => {
-      const results = await Promise.allSettled([
-        API.produtos.list(),
-        API.clientes.list(),
-        API.vendas.list(),
-        API.funcionarios.list(),
-        API.fornecedores.list(),
-        API.categorias.list(),
-      ]);
+  const primeiroNome = nomeCompleto.split(' ')[0];
+  const iniciais = nomeCompleto.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
 
-      if (cancelled) return;
-
-      const [prods, clis, vends, funcs, forns, cats] = results;
-      setCounts({
-        produtos: prods.status === 'fulfilled' && Array.isArray(prods.value) ? prods.value.length : 0,
-        clientes: clis.status === 'fulfilled' && Array.isArray(clis.value) ? clis.value.length : 0,
-        vendas: vends.status === 'fulfilled' && Array.isArray(vends.value) ? vends.value.length : 0,
-        funcionarios: funcs.status === 'fulfilled' && Array.isArray(funcs.value) ? funcs.value.length : 0,
-        fornecedores: forns.status === 'fulfilled' && Array.isArray(forns.value) ? forns.value.length : 0,
-        categorias: cats.status === 'fulfilled' && Array.isArray(cats.value) ? cats.value.length : 0,
-      });
-
-      if (vends.status === 'fulfilled' && Array.isArray(vends.value)) {
-        setUltimasVendas(vends.value.slice(-5).reverse());
-      } else {
-        setVendasError(true);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, []);
+  const subInfo = cargo
+    ? (empresaNome ? `${cargo} · ${empresaNome}` : cargo)
+    : (empresaNome || nivelAcesso || 'Funcionário');
 
   return (
-    <>
-      <div className="section-header">
-        <h1>Dashboard</h1>
-        <span style={{ fontSize: '.8125rem', color: 'var(--text-muted)' }}>Visão geral do sistema</span>
+    <aside className={`sidebar${open ? ' open' : ''}`}>
+      <div className="sidebar-logo">
+        <img src={logo} alt="Tech Store Logo" width={40} height={40} />
+        <span className="logo-text">Tech Store</span>
       </div>
 
-      <div className="grid-3" style={{ marginBottom: '1.75rem' }}>
-        {STAT_LABELS.map(([key, label]) => (
-          <div className="stat-card" key={key}>
-            <div className="label">{label}</div>
-            <div className="value">{counts ? counts[key] : <Spinner />}</div>
+      <nav className="sidebar-nav">
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.label}>
+            <div className="nav-section-label">{section.label}</div>
+            {section.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onNavigate}
+                className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+              >
+                <span className="nav-icon">{item.icon}</span> {item.label}
+              </NavLink>
+            ))}
           </div>
         ))}
-      </div>
+      </nav>
 
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '1.5rem' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Últimas Vendas</h2>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Cliente</th>
-                <th>Funcionário</th>
-                <th>Pagamento</th>
-                <th>Total</th>
-                <th>Data</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ultimasVendas === null && !vendasError && <LoadingRow colSpan={6} />}
-              {vendasError && <EmptyRow colSpan={6} message="Erro ao carregar vendas." />}
-              {ultimasVendas !== null && ultimasVendas.length === 0 && (
-                <EmptyRow colSpan={6} message="Nenhuma venda registrada." />
-              )}
-              {ultimasVendas?.map((v) => (
-                <tr key={v.id}>
-                  <td><code style={{ fontFamily: 'var(--font-mono)', fontSize: '.8rem', color: 'var(--accent)' }}>#{v.id}</code></td>
-                  <td>{v.nomeCliente ?? v.idCliente ?? '—'}</td>
-                  <td>{v.nomeFuncionario ?? v.idFuncionario ?? '—'}</td>
-                  <td><span className="badge badge-info">{v.metodoPagamento ?? '—'}</span></td>
-                  <td style={{ fontWeight: 600 }}>{formatCurrency(v.total ?? v.valorTotal)}</td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '.8125rem' }}>{formatDateDisplay(v.dataVenda ?? v.data)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="sidebar-footer">
+        <div className="user-info" title={`${nomeCompleto}\n${cargo}`}>
+          <div className="user-avatar">
+            {imagemUrl
+              ? <img src={imagemUrl} alt={primeiroNome} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              : iniciais}
+          </div>
+          <div>
+            <div className="user-name">{primeiroNome}</div>
+            <div className="user-role">{subInfo}</div>
+          </div>
         </div>
+        <button className="btn btn-logout btn-sm" onClick={logout}>
+          🚪 Sair
+        </button>
       </div>
-    </>
+    </aside>
   );
 }
